@@ -11,7 +11,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [nome, setNome] = useState('')
   const [nivel, setNivel] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -20,44 +20,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.push('/auth/login')
         return
       }
-      const meta = user.user_metadata
-      setNome(meta?.nome ?? user.email ?? '')
-      setNivel(meta?.nivel ?? '')
-      setLoading(false)
+      const meta = user.user_metadata ?? {}
+      setNome(meta.nome ?? user.email ?? '')
+      setNivel(meta.nivel ?? '')
+      setReady(true)
     })
   }, [router])
 
-  if (loading) {
+  if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f0f4f8]">
-        <div className="text-dativa-700 text-sm">Carregando...</div>
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f0f4f8'
+      }}>
+        <p style={{ color: '#2d5986', fontSize: '14px' }}>Carregando...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f4f8] flex flex-col">
+    <div style={{ minHeight: '100vh', background: '#f0f4f8', display: 'flex', flexDirection: 'column' }}>
       <Header
         nome={nome}
         nivel={nivel}
         onMenuClick={() => setSidebarOpen(true)}
       />
 
-      <div className="flex flex-1 relative">
-        <Sidebar
-          nivel={nivel}
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+      <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
 
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black/40 z-20 top-[52px]"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
+        {/* Sidebar desktop — sempre visível em telas >= 768px */}
+        <div className="hidden md:block" style={{ width: '230px', flexShrink: 0 }}>
+          <Sidebar nivel={nivel} open={true} onClose={() => {}} isDesktop={true} />
+        </div>
 
-        <main className="flex-1 p-4 md:p-6 min-w-0">
+        {/* Sidebar mobile — gaveta */}
+        <div className="md:hidden">
+          {sidebarOpen && (
+            <div
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                top: '52px',
+                background: 'rgba(0,0,0,0.4)',
+                zIndex: 20
+              }}
+            />
+          )}
+          <Sidebar nivel={nivel} open={sidebarOpen} onClose={() => setSidebarOpen(false)} isDesktop={false} />
+        </div>
+
+        <main style={{ flex: 1, padding: '24px', minWidth: 0 }}>
           {children}
         </main>
       </div>
