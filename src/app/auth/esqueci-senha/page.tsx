@@ -52,7 +52,7 @@ function EsqueciSenhaConteudo() {
               <p className="text-sm text-gray-500 leading-relaxed">
                 Se houver uma conta com este email, você receberá um link para redefinir sua senha. Verifique também a caixa de spam.
               </p>
-              
+              <a
                 href="/auth/login"
                 className="inline-block mt-6 text-sm text-dativa-700 hover:text-dativa-800 hover:underline"
               >
@@ -103,7 +103,7 @@ function EsqueciSenhaConteudo() {
               </form>
 
               <div className="mt-4 text-center">
-                
+                <a
                   href="/auth/login"
                   className="text-sm text-dativa-700 hover:text-dativa-800 hover:underline"
                 >
@@ -119,4 +119,15 @@ function EsqueciSenhaConteudo() {
 }
 
 // Componente externo: embrulha o conteúdo em Suspense.
-// Exigido pelo Next.js quando se usa
+// Exigido pelo Next.js quando se usa useSearchParams.
+export default function EsqueciSenhaPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#f0f4f8] flex items-center justify-center">
+        <p className="text-sm text-gray-400">Carregando...</p>
+      </div>
+    }>
+      <EsqueciSenhaConteudo />
+    </Suspense>
+  )
+}
