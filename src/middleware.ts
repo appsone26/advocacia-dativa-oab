@@ -66,11 +66,22 @@ export async function middleware(request: NextRequest) {
   // Nunca use getSession() no middleware — é menos seguro.
   const { data: { user } } = await supabase.auth.getUser()
 
-  // 1. Rotas públicas — deixa passar sem verificação
+  // 1. Rota raiz — redireciona sempre (logado → dashboard, deslogado → login)
+  if (pathname === '/') {
+    if (user) {
+      const nivel = user.user_metadata?.nivel as NivelUsuario
+      const dashboard = DASHBOARD_POR_NIVEL[nivel]
+      if (dashboard && dashboard !== '/auth/login') {
+        return NextResponse.redirect(new URL(dashboard, request.url))
+      }
+    }
+    return NextResponse.redirect(new URL('/auth/login', request.url))
+  }
+
+  // 2. Rotas públicas — deixa passar sem verificação
   if (
     PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
-    isPublicCadastro(pathname) ||
-    pathname === '/'
+    isPublicCadastro(pathname)
   ) {
     // Se já está logado e tenta acessar /login, redireciona ao dashboard
     if (user && pathname === '/auth/login') {
