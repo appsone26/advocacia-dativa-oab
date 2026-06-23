@@ -1,33 +1,19 @@
-// ============================================================
-// MIDDLEWARE — Advocacia Dativa
-// ============================================================
-
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import type { NivelUsuario } from '@/types'
 
 type CookieToSet = { name: string; value: string; options?: Record<string, unknown> }
 
-const PUBLIC_ROUTES = [
-  '/auth/login',
-  '/auth/esqueci-senha',
-  '/auth/primeiro-acesso',
-  '/auth/confirmar',
-  '/auth/redefinir-senha',
-]
-
-const isPublicCadastro = (path: string) => path.startsWith('/cadastro/')
-
-const DASHBOARD_POR_NIVEL: Record<NivelUsuario, string> = {
-  cliente:  '/auth/login',
-  advogado: '/dashboard/advogado',
-  gestor:   '/dashboard/gestor',
-  comissao: '/dashboard/comissao',
-  owner:    '/dashboard/owner',
-}
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Ignora arquivos estáticos explicitamente
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|css|js)$/)
+  ) {
+    return NextResponse.next()
+  }
 
   let supabaseResponse = NextResponse.next({ request })
 
@@ -54,42 +40,74 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Rotas públicas — deixa passar
-  const isPublic =
-    PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
-    isPublicCadastro(pathname) ||
-    pathname === '/'
+  // Rotas públicas — nunca redireciona
+  const publicPaths = [
+    '/auth/login',
+    '/auth/esqueci-senha',
+    '/auth/primeiro-acesso',
+    '/auth/confirmar',
+    '/auth/redefinir-senha',
+  ]
+  const isPublic = publicPaths.some(p => pathname.startsWith(p)) || pathname.startsWith('/cadastro/')
 
   if (isPublic) {
-    // Já logado tentando acessar /login → redireciona ao dashboard
-    if (user && pathname === '/auth/login') {
-      const nivel = user.user_metadata?.nivel as NivelUsuario
-      const dashboard = DASHBOARD_POR_NIVEL[nivel]
-      if (dashboard && dashboard !== '/auth/login') {
-        return NextResponse.redirect(new URL(dashboard, request.url))
+    // Logado tentando acessar login → vai pro dashboard
+    if (user && pathname.startsWith('/auth/login')) {
+      const nivel = user.user_metadata?.nivel as string
+      const destinos: Record<string, string> = {
+        owner:    '/dashboard/owner',
+        comissao: '/dashboard/comissao',
+        gestor:   '/dashboard/gestor',
+        advogado: '/dashboard/advogado',
+      }
+      const destino = destinos[nivel]
+      if (destino) {
+        return NextResponse.redirect(new URL(destino, request.url))
       }
     }
     return supabaseResponse
   }
 
-  // Sem sessão → redireciona para login
+  // Rota raiz → redireciona
+  if (pathname === '/') {
+    if (user) {
+      const nivel = user.user_metadata?.nivel as string
+      const destinos: Record<string, string> = {
+        owner:    '/dashboard/owner',
+        comissao: '/dashboard/comissao',
+        gestor:   '/dashboard/gestor',
+        advogado: '/dashboard/advogado',
+      }
+      const destino = destinos[nivel]
+      if (destino) return NextResponse.redirect(new URL(destino, request.url))
+    }
+    return NextResponse.redirect(new URL('/auth/login', request.url))
+  }
+
+  // Rota protegida sem sessão → login
   if (!user) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
 
-  const nivel = user.user_metadata?.nivel as NivelUsuario
+  const nivel = user.user_metadata?.nivel as string
   const primeiroacesso = user.user_metadata?.primeiro_acesso as boolean
 
-  // Primeiro acesso → força troca de senha
+  // Primeiro acesso → troca de senha
   if (primeiroacesso && !pathname.startsWith('/auth/primeiro-acesso')) {
     return NextResponse.redirect(new URL('/auth/primeiro-acesso', request.url))
   }
 
-  // Rota de dashboard errada para o nível → redireciona ao correto
+  // Dashboard errado para o nível
   if (pathname.startsWith('/dashboard/')) {
-    const dashboardCorreto = DASHBOARD_POR_NIVEL[nivel]
-    if (dashboardCorreto && dashboardCorreto !== '/auth/login' && !pathname.startsWith(dashboardCorreto)) {
-      return NextResponse.redirect(new URL(dashboardCorreto, request.url))
+    const destinos: Record<string, string> = {
+      owner:    '/dashboard/owner',
+      comissao: '/dashboard/comissao',
+      gestor:   '/dashboard/gestor',
+      advogado: '/dashboard/advogado',
+    }
+    const correto = destinos[nivel]
+    if (correto && !pathname.startsWith(correto)) {
+      return NextResponse.redirect(new URL(correto, request.url))
     }
   }
 
@@ -97,7 +115,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }
