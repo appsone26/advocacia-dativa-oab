@@ -1,15 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
+// src/app/dashboard/layout.tsx
+// IMPORTANTE: Este layout NÃO chama Supabase nem faz redirect.
+// O middleware já garantiu que só usuários autenticados chegam aqui.
+// Os dados do usuário (nome, nível) são lidos client-side pelo DashboardShell.
 import DashboardShell from '@/components/dashboard/DashboardShell'
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const nome = (user?.user_metadata?.nome as string) ?? (user?.email ?? '')
-  const nivel = (user?.user_metadata?.nivel as string) ?? ''
-
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <DashboardShell nome={nome} nivel={nivel}>
+    <DashboardShell>
       {children}
     </DashboardShell>
   )

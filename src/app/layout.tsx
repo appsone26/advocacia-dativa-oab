@@ -1,21 +1,28 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import DashboardShell from '@/components/dashboard/DashboardShell'
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+})
 
-  if (!user) {
-    redirect('/auth/login')
-  }
+export const metadata: Metadata = {
+  title: 'Advocacia Dativa — OAB-RJ',
+  description: 'Sistema de gestão da Comissão de Desenvolvimento da Advocacia Dativa · OAB-RJ',
+  // Favicon será o brasão da OAB-RJ (adicionar em /public/favicon.ico)
+}
 
-  const nome = user.user_metadata?.nome ?? user.email ?? ''
-  const nivel = user.user_metadata?.nivel ?? ''
-
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <DashboardShell nome={nome} nivel={nivel}>
-      {children}
-    </DashboardShell>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <body className={`${inter.variable} font-sans bg-gray-50 antialiased`}>
+        {children}
+      </body>
+    </html>
   )
 }
