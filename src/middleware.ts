@@ -14,6 +14,8 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { NivelUsuario } from '@/types'
 
+type CookieToSet = { name: string; value: string; options?: Record<string, unknown> }
+
 // Rotas que não precisam de autenticação
 const PUBLIC_ROUTES = [
   '/auth/login',
@@ -47,7 +49,7 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll()
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
