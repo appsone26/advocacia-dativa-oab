@@ -120,9 +120,10 @@ type Props = {
   nivel: string
   open: boolean
   onClose: () => void
+  isDesktop?: boolean
 }
 
-export default function Sidebar({ nivel, open, onClose }: Props) {
+export default function Sidebar({ nivel, open, onClose, isDesktop = false }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const nav = getNav(nivel)
@@ -135,19 +136,11 @@ export default function Sidebar({ nivel, open, onClose }: Props) {
 
   function handleNav(href: string) {
     router.push(href)
-    onClose()
+    if (!isDesktop) onClose()
   }
 
-  return (
-    <aside
-      className={`
-        fixed top-[52px] left-0 bottom-0 w-[230px] z-30
-        flex flex-col
-        transition-transform duration-250 ease-in-out
-        ${open ? 'translate-x-0' : '-translate-x-full'}
-      `}
-      style={{ background: '#1e3a5f' }}
-    >
+  const sidebarContent = (
+    <>
       <div
         className="flex items-center gap-3 px-3 py-4 border-b"
         style={{ borderColor: 'rgba(255,255,255,0.1)' }}
@@ -179,15 +172,18 @@ export default function Sidebar({ nivel, open, onClose }: Props) {
                 <button
                   key={item.href}
                   onClick={() => handleNav(item.href)}
-                  className={`
-                    w-full flex items-center gap-3 px-3 py-2 mx-1.5 rounded-md text-[13px] text-left
-                    transition-colors duration-150
-                    ${active
-                      ? 'text-white'
-                      : 'text-white/65 hover:text-white hover:bg-white/10'
-                    }
-                  `}
-                  style={active ? { background: 'rgba(201,162,39,0.2)', width: 'calc(100% - 12px)' } : { width: 'calc(100% - 12px)' }}
+                  className="flex items-center gap-3 py-2 px-3 mx-1.5 rounded-md text-[13px] text-left transition-colors duration-150"
+                  style={{
+                    width: 'calc(100% - 12px)',
+                    background: active ? 'rgba(201,162,39,0.2)' : 'transparent',
+                    color: active ? '#fff' : 'rgba(255,255,255,0.65)',
+                  }}
+                  onMouseEnter={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)'
+                  }}
+                  onMouseLeave={e => {
+                    if (!active) (e.currentTarget as HTMLElement).style.background = 'transparent'
+                  }}
                 >
                   <span style={{ color: active ? '#c9a227' : 'rgba(255,255,255,0.65)' }}>
                     {item.icon}
@@ -211,12 +207,46 @@ export default function Sidebar({ nivel, open, onClose }: Props) {
       <div className="border-t p-2" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] text-white/65 hover:text-white hover:bg-white/10 transition-colors"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] transition-colors"
+          style={{ color: 'rgba(255,255,255,0.65)' }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)'
+            ;(e.currentTarget as HTMLElement).style.color = '#fff'
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLElement).style.background = 'transparent'
+            ;(e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.65)'
+          }}
         >
-          <LogOut size={18} style={{ color: 'rgba(255,255,255,0.65)' }} />
+          <LogOut size={18} />
           <span>Sair</span>
         </button>
       </div>
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <aside
+        className="flex flex-col w-full h-[calc(100vh-52px)] sticky top-[52px]"
+        style={{ background: '#1e3a5f' }}
+      >
+        {sidebarContent}
+      </aside>
+    )
+  }
+
+  return (
+    <aside
+      className={`
+        fixed top-[52px] left-0 bottom-0 w-[230px] z-30
+        flex flex-col
+        transition-transform duration-250 ease-in-out
+        ${open ? 'translate-x-0' : '-translate-x-full'}
+      `}
+      style={{ background: '#1e3a5f' }}
+    >
+      {sidebarContent}
     </aside>
   )
 }
