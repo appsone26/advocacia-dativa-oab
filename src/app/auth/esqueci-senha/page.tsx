@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-export default function EsqueciSenhaPage() {
+function EsqueciSenhaConteudo() {
   const searchParams = useSearchParams()
   const linkInvalido = searchParams.get('erro') === 'link_invalido'
 
@@ -52,7 +52,7 @@ export default function EsqueciSenhaPage() {
               <p className="text-sm text-gray-500 leading-relaxed">
                 Se houver uma conta com este email, você receberá um link para redefinir sua senha. Verifique também a caixa de spam.
               </p>
-              <a
+              
                 href="/auth/login"
                 className="inline-block mt-6 text-sm text-dativa-700 hover:text-dativa-800 hover:underline"
               >
@@ -103,7 +103,7 @@ export default function EsqueciSenhaPage() {
               </form>
 
               <div className="mt-4 text-center">
-                <a
+                
                   href="/auth/login"
                   className="text-sm text-dativa-700 hover:text-dativa-800 hover:underline"
                 >
@@ -117,3 +117,6 @@ export default function EsqueciSenhaPage() {
     </div>
   )
 }
+
+// Componente externo: embrulha o conteúdo em Suspense.
+// Exigido pelo Next.js quando se usa
