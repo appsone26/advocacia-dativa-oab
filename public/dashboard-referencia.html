@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advocacia Dativa — OAB-RJ</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #f0f4f8; min-height: 100vh; }
+
+  /* HEADER */
+  .header { background: linear-gradient(135deg, #1e3a5f 0%, #2d5986 100%); padding: 0 28px; }
+  .header-inner { max-width: 1340px; margin: 0 auto; }
+  .header-top { display: flex; align-items: center; justify-content: space-between; padding-top: 18px; }
+  .logo { display: flex; align-items: center; gap: 14px; }
+  .logo-icon { width: 46px; height: 46px; background: #c9a227; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+  .logo-eyebrow { color: #c9a227; font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; }
+  .logo-title { color: #fff; font-size: 20px; font-weight: 800; }
+  .user-info { display: flex; align-items: center; gap: 12px; }
+  .user-text { text-align: right; }
+  .user-label { color: #94b8d8; font-size: 11px; }
+  .user-name { color: #fff; font-size: 14px; font-weight: 600; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: #c9a227; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 14px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; margin-top: 18px; }
+  .tab { padding: 10px 18px; border: none; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; font-weight: 600; background: transparent; color: #94b8d8; transition: all 0.15s; }
+  .tab.active { background: #f0f4f8; color: #1e3a5f; }
+
+  /* MAIN */
+  .main { max-width: 1340px; margin: 0 auto; padding: 24px; }
+
+  /* CARDS TOPO */
+  .cards-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 20px; }
+  .card { background: #fff; border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .card-icon { font-size: 24px; }
+  .card-val { font-size: 26px; font-weight: 900; margin-top: 4px; }
+  .card-label { font-size: 11px; color: #64748b; font-weight: 600; margin-top: 2px; }
+
+  /* PROGRESSO */
+  .progress-box { background: #fff; border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .progress-top { display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .progress-title { font-weight: 700; color: #1e3a5f; font-size: 13px; }
+  .progress-pct { font-size: 13px; font-weight: 800; color: #10b981; }
+  .progress-bar { height: 10px; background: #f1f5f9; border-radius: 99px; overflow: hidden; display: flex; }
+  .progress-seg { height: 100%; }
+  .progress-legend { display: flex; gap: 20px; margin-top: 8px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+  /* GRID CONTEÚDO */
+  .content-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+
+  /* FILTROS */
+  .filtros { background: #fff; border-radius: 14px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .filtros-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .filtros-row2 { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+  input[type=text] { padding: 8px 14px; border-radius: 8px; border: 1.5px solid #e2e8f0; font-size: 13px; flex: 1; min-width: 160px; outline: none; font-family: inherit; }
+  select { padding: 8px 12px; border-radius: 8px; border: 1.5px solid #e2e8f0; font-size: 12px; color: #374151; background: #fff; cursor: pointer; font-family: inherit; }
+  .filtro-label { font-size: 11px; color: #94a3b8; font-weight: 600; }
+  .btn-filtro { padding: 5px 12px; border-radius: 20px; border: none; cursor: pointer; font-size: 11px; font-weight: 700; background: #f1f5f9; color: #64748b; transition: all 0.12s; font-family: inherit; }
+  .btn-filtro.on { background: #1e3a5f; color: #fff; }
+  .btn-filtro.prio-critica.on { background: #ef4444; }
+  .btn-filtro.prio-alta.on { background: #f97316; }
+  .btn-filtro.prio-media.on { background: #f59e0b; }
+  .btn-filtro.prio-baixa.on { background: #10b981; }
+
+  .lista-count { font-size: 12px; color: #94a3b8; margin-bottom: 10px; font-weight: 600; }
+
+  /* CARDS MUNICÍPIO */
+  .mun-list { display: flex; flex-direction: column; gap: 8px; }
+  .mun-card { background: #fff; border-radius: 12px; padding: 14px 16px; border: 2px solid transparent; cursor: pointer; transition: all 0.12s; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .mun-card:hover { border-color: #c7d9ec; box-shadow: 0 3px 10px rgba(30,58,95,.1); }
+  .mun-card.selected { border-color: #1e3a5f; box-shadow: 0 4px 16px rgba(30,58,95,.15); }
+  .mun-inner { display: flex; align-items: flex-start; gap: 12px; }
+  .mun-body { flex: 1; min-width: 0; }
+  .mun-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .mun-nome { font-weight: 700; font-size: 14px; color: #1e293b; }
+  .mun-regiao { font-size: 11px; color: #94a3b8; }
+  .mun-badges { display: flex; flex-direction: column; gap: 5px; align-items: flex-end; flex-shrink: 0; }
+  .badge { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; }
+
+  /* MINI STATS */
+  .mini-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px 16px; }
+  .mini-stat-label { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .mini-stat-key { font-size: 10px; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
+  .mini-stat-val { font-size: 11px; font-weight: 800; color: #1e293b; }
+  .mini-bar-bg { height: 5px; background: #f1f5f9; border-radius: 99px; overflow: hidden; }
+  .mini-bar-fill { height: 100%; border-radius: 99px; }
+
+  /* RATIO */
+  .ratio-row { margin-top: 8px; }
+  .ratio-label { display: flex; justify-content: space-between; margin-bottom: 3px; }
+  .ratio-key { font-size: 10px; color: #64748b; font-weight: 600; }
+
+  /* PAINEL DIREITO */
+  .right-panel { display: flex; flex-direction: column; gap: 16px; }
+  .panel-box { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .panel-box.selected { border: 2px solid #1e3a5f; }
+  .panel-title { font-weight: 700; font-size: 13px; color: #1e3a5f; margin-bottom: 12px; }
+
+  /* DETALHE */
+  .detail-nome { font-weight: 800; font-size: 16px; color: #1e3a5f; }
+  .detail-close { background: none; border: none; cursor: pointer; font-size: 22px; color: #94a3b8; line-height: 1; }
+  .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .detail-sublabel { font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 4px; }
+  .detail-subval { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 14px; }
+  .detail-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .detail-stat { background: #f8fafc; border-radius: 10px; padding: 12px 14px; }
+  .detail-stat-icon { font-size: 18px; }
+  .detail-stat-val { font-size: 18px; font-weight: 900; margin-top: 4px; }
+  .detail-stat-key { font-size: 10px; color: #94a3b8; font-weight: 600; }
+  .detail-analise { border-radius: 10px; padding: 12px; margin-bottom: 14px; }
+  .detail-analise-titulo { font-size: 11px; font-weight: 800; margin-bottom: 4px; }
+  .detail-analise-texto { font-size: 12px; color: #374151; }
+  .detail-actions { display: flex; flex-direction: column; gap: 8px; }
+  .btn-action { padding: 10px 14px; border: none; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; text-align: left; font-family: inherit; }
+
+  /* RANKING */
+  .ranking-item { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid #f8fafc; }
+  .ranking-item:last-child { border-bottom: none; }
+  .rank-num { width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .rank-body { flex: 1; }
+  .rank-nome { font-size: 12px; font-weight: 700; color: #1e293b; }
+  .rank-sub { font-size: 10px; color: #94a3b8; }
+  .rank-val { text-align: right; }
+  .rank-num-big { font-size: 13px; font-weight: 900; color: #ef4444; }
+  .rank-unit { font-size: 9px; color: #94a3b8; }
+
+  /* VISITAS */
+  .visita-item { padding: 9px 0; border-bottom: 1px solid #f1f5f9; }
+  .visita-item:last-of-type { border-bottom: none; }
+  .visita-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .visita-nome { font-weight: 700; font-size: 13px; color: #1e293b; }
+  .visita-contato { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+  .visita-data { font-size: 11px; font-weight: 700; color: #1e3a5f; }
+  .visita-status { font-size: 10px; font-weight: 700; }
+  .btn-nova-visita { width: 100%; padding: 10px 0; margin-top: 12px; background: #f1f5f9; color: #1e3a5f; border: none; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit; }
+
+  /* ABA PLACEHOLDER */
+  .placeholder { background: #fff; border-radius: 20px; padding: 60px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .placeholder-icon { font-size: 48px; margin-bottom: 16px; }
+  .placeholder-title { font-size: 20px; font-weight: 800; color: #1e3a5f; margin-bottom: 8px; }
+  .placeholder-desc { font-size: 14px; color: #94a3b8; max-width: 400px; margin: 0 auto 24px; }
+  .placeholder-badge { display: inline-block; background: #e8f0f7; color: #1e3a5f; padding: 10px 28px; border-radius: 12px; font-weight: 700; font-size: 13px; }
+
+  .hidden { display: none !important; }
+
+  /* ── MOBILE RESPONSIVO ── */
+  @media (max-width: 700px) {
+    /* Header compacto */
+    .header { padding: 0 14px; }
+    .logo-eyebrow { display: none; }
+    .logo-title { font-size: 16px; }
+    .logo-icon { width: 36px; height: 36px; font-size: 18px; }
+    .user-text { display: none; }
+    .avatar { width: 34px; height: 34px; font-size: 12px; }
+
+    /* Abas: scroll horizontal */
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; gap: 2px; padding-bottom: 0; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { padding: 8px 12px; font-size: 11px; white-space: nowrap; }
+
+    /* Main sem padding lateral excessivo */
+    .main { padding: 12px; }
+
+    /* Cards: 2 colunas no mobile */
+    .cards-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .cards-grid .card:last-child { grid-column: span 2; }
+    .card { padding: 12px 14px; border-radius: 12px; }
+    .card-icon { font-size: 20px; }
+    .card-val { font-size: 22px; }
+    .card-label { font-size: 10px; }
+
+    /* Progresso */
+    .progress-box { padding: 12px 14px; }
+    .progress-title { font-size: 12px; }
+    .progress-legend { gap: 10px; }
+    .legend-item { font-size: 11px; }
+
+    /* Grid: coluna única, painel direito vai abaixo */
+    .content-grid { grid-template-columns: 1fr; }
+
+    /* Filtros */
+    .filtros { padding: 12px; }
+    .filtros-row { gap: 8px; }
+    input[type=text] { font-size: 14px; min-width: 0; }
+    select { font-size: 12px; width: 100%; }
+    .filtros-row2 { gap: 5px; }
+    .filtro-label { font-size: 10px; }
+    .btn-filtro { padding: 4px 10px; font-size: 10px; }
+
+    /* Cards município: mini-stats em 1 coluna */
+    .mini-stats { grid-template-columns: 1fr 1fr; gap: 5px 12px; }
+    .mun-card { padding: 12px 12px; }
+    .mun-nome { font-size: 13px; }
+    .mun-badges { gap: 4px; }
+    .badge { font-size: 9px; padding: 2px 8px; }
+
+    /* Painel detalhe: ocupa tela toda quando aberto */
+    .right-panel { order: -1; }  /* aparece antes da lista no mobile quando detalhe aberto */
+    .panel-box { padding: 16px; }
+    .detail-stats { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .detail-stat { padding: 10px 12px; }
+    .detail-stat-val { font-size: 15px; }
+    .btn-action { font-size: 12px; padding: 10px 12px; }
+
+    /* Placeholder detalhe: oculto no mobile até selecionar */
+    #detalhe-placeholder { display: none; }
+  }
+
+  @media (max-width: 400px) {
+    .cards-grid { grid-template-columns: repeat(2, 1fr); }
+    .mini-stats { grid-template-columns: 1fr; }
+    .mun-inner { flex-direction: column; gap: 8px; }
+    .mun-badges { flex-direction: row; align-items: center; }
+    .tab { font-size: 10px; padding: 7px 10px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-icon">⚖️</div>
+        <div>
+          <div class="logo-eyebrow">OAB-RJ · Comissão Estadual</div>
+          <div class="logo-title">Advocacia Dativa</div>
+        </div>
+      </div>
+      <div class="user-info">
+        <div class="user-text">
+          <div class="user-label">Diretora</div>
+          <div class="user-name">Dra. Patrícia Pacheco</div>
+        </div>
+        <div class="avatar">PP</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="setAba('municipios',this)">🏛️ Municípios</button>
+      <button class="tab" onclick="setAba('advogados',this)">👩‍⚖️ Advogados</button>
+      <button class="tab" onclick="setAba('clientes',this)">👥 Clientes</button>
+      <button class="tab" onclick="setAba('treinamento',this)">🎓 Treinamentos</button>
+      <button class="tab" onclick="setAba('comissao',this)">⚖️ Comissão</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ABA MUNICÍPIOS -->
+  <div id="aba-municipios">
+
+    <!-- CARDS TOPO -->
+    <div class="cards-grid">
+      <div class="card" style="border:2px solid #dbeafe">
+        <div class="card-icon">🏛️</div>
+        <div class="card-val" style="color:#1e3a5f" id="stat-total">93</div>
+        <div class="card-label">Municípios</div>
+      </div>
+      <div class="card" style="border:2px solid #d1fae5">
+        <div class="card-icon">✅</div>
+        <div class="card-val" style="color:#10b981" id="stat-ativos">—</div>
+        <div class="card-label">Parcerias Ativas</div>
+      </div>
+      <div class="card" style="border:2px solid #fef3c7">
+        <div class="card-icon">🤝</div>
+        <div class="card-val" style="color:#f59e0b" id="stat-neg">—</div>
+        <div class="card-label">Em Negociação</div>
+      </div>
+      <div class="card" style="border:2px solid #fee2e2">
+        <div class="card-icon">🚨</div>
+        <div class="card-val" style="color:#ef4444" id="stat-crit">—</div>
+        <div class="card-label">Atenção Crítica</div>
+      </div>
+      <div class="card" style="border:2px solid #ede9fe">
+        <div class="card-icon">👩‍⚖️</div>
+        <div class="card-val" style="color:#6366f1" id="stat-adv">—</div>
+        <div class="card-label">Advogados OAB-RJ</div>
+      </div>
+    </div>
+
+    <!-- PROGRESSO -->
+    <div class="progress-box">
+      <div class="progress-top">
+        <span class="progress-title">Cobertura do Estado</span>
+        <span class="progress-pct" id="prog-pct">—</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-seg" id="prog-ativa" style="background:#10b981"></div>
+        <div class="progress-seg" id="prog-neg" style="background:#f59e0b"></div>
+      </div>
+      <div class="progress-legend" id="prog-legend"></div>
+    </div>
+
+    <!-- CONTEÚDO -->
+    <div class="content-grid">
+      <!-- LISTA -->
+      <div>
+        <!-- FILTROS -->
+        <div class="filtros">
+          <div class="filtros-row">
+            <input type="text" id="busca" placeholder="🔍 Buscar município..." oninput="renderLista()">
+            <select id="sel-regiao" onchange="renderLista()">
+              <option value="">Todas as regiões</option>
+            </select>
+            <select id="sel-ordem" onchange="renderLista()">
+              <option value="nome">Ordenar: A–Z</option>
+              <option value="pop">Ordenar: População</option>
+              <option value="adv10k">Ordenar: Menos adv/hab</option>
+              <option value="renda">Ordenar: Menor renda</option>
+              <option value="prioridade">Ordenar: Prioridade</option>
+            </select>
+          </div>
+          <div class="filtros-row2">
+            <span class="filtro-label">Status:</span>
+            <button class="btn-filtro on" data-grupo="status" data-val="todos" onclick="setFiltro('status','todos',this)">Todos</button>
+            <button class="btn-filtro" data-grupo="status" data-val="ativa" onclick="setFiltro('status','ativa',this)">Parceria Ativa</button>
+            <button class="btn-filtro" data-grupo="status" data-val="negociando" onclick="setFiltro('status','negociando',this)">Em Negociação</button>
+            <button class="btn-filtro" data-grupo="status" data-val="pendente" onclick="setFiltro('status','pendente',this)">Não Iniciada</button>
+            <span class="filtro-label" style="margin-left:8px">Prioridade:</span>
+            <button class="btn-filtro on" data-grupo="prio" data-val="todos" onclick="setFiltro('prio','todos',this)">Todos</button>
+            <button class="btn-filtro prio-critica" data-grupo="prio" data-val="critica" onclick="setFiltro('prio','critica',this)">Crítica</button>
+            <button class="btn-filtro prio-alta" data-grupo="prio" data-val="alta" onclick="setFiltro('prio','alta',this)">Alta</button>
+            <button class="btn-filtro prio-media" data-grupo="prio" data-val="media" onclick="setFiltro('prio','media',this)">Média</button>
+            <button class="btn-filtro prio-baixa" data-grupo="prio" data-val="baixa" onclick="setFiltro('prio','baixa',this)">Baixa</button>
+          </div>
+        </div>
+
+        <div class="lista-count" id="lista-count"></div>
+        <div class="mun-list" id="mun-list"></div>
+      </div>
+
+      <!-- PAINEL DIREITO -->
+      <div class="right-panel">
+
+        <!-- DETALHE -->
+        <div class="panel-box" id="detalhe-placeholder">
+          <div style="text-align:center;padding:20px 0">
+            <div style="font-size:36px;margin-bottom:8px">🏛️</div>
+            <div style="font-weight:700;color:#1e3a5f;font-size:13px;margin-bottom:4px">Selecione um município</div>
+            <div style="font-size:12px;color:#94a3b8">Veja população, advogados, renda per capita e análise de prioridade</div>
+          </div>
+        </div>
+
+        <div class="panel-box selected hidden" id="detalhe-panel">
+          <div class="detail-header">
+            <div class="detail-nome" id="d-nome">—</div>
+            <button class="detail-close" onclick="fecharDetalhe()">×</button>
+          </div>
+          <div class="detail-sublabel">REGIÃO</div>
+          <div class="detail-subval" id="d-regiao">—</div>
+          <div class="detail-stats">
+            <div class="detail-stat">
+              <div class="detail-stat-icon">👥</div>
+              <div class="detail-stat-val" id="d-pop" style="color:#6366f1">—</div>
+              <div class="detail-stat-key">Habitantes</div>
+            </div>
+            <div class="detail-stat">
+              <div class="detail-stat-icon">👩‍⚖️</div>
+              <div class="detail-stat-val" id="d-adv" style="color:#0ea5e9">—</div>
+              <div class="detail-stat-key">Advogados OAB</div>
+            </div>
+            <div class="detail-stat">
+              <div class="detail-stat-icon">📊</div>
+              <div class="detail-stat-val" id="d-ratio">—</div>
+              <div class="detail-stat-key">Adv / 10k hab</div>
+            </div>
+            <div class="detail-stat">
+              <div class="detail-stat-icon">💰</div>
+              <div class="detail-stat-val" id="d-renda" style="color:#10b981">—</div>
+              <div class="detail-stat-key">Renda per Capita</div>
+            </div>
+          </div>
+          <div class="detail-analise" id="d-analise">
+            <div class="detail-analise-titulo" id="d-analise-titulo">—</div>
+            <div class="detail-analise-texto" id="d-analise-texto">—</div>
+          </div>
+          <div class="detail-actions">
+            <button class="btn-action" style="background:#1e3a5f;color:#fff">✏️ Atualizar Status da Parceria</button>
+            <button class="btn-action" style="background:#f1f5f9;color:#1e3a5f">📅 Agendar Visita da Dra. Patrícia</button>
+            <button class="btn-action" style="background:#f1f5f9;color:#1e3a5f">👩‍⚖️ Selecionar Advogados</button>
+            <button class="btn-action" style="background:#f1f5f9;color:#1e3a5f">📝 Registrar Contato</button>
+          </div>
+        </div>
+
+        <!-- RANKING -->
+        <div class="panel-box">
+          <div class="panel-title" style="color:#ef4444">🚨 Maior Necessidade — Menos adv/10k hab</div>
+          <div id="ranking-list"></div>
+        </div>
+
+        <!-- VISITAS -->
+        <div class="panel-box">
+          <div class="panel-title">📅 Próximas Visitas — Dra. Patrícia</div>
+          <div class="visita-item">
+            <div class="visita-row">
+              <div><div class="visita-nome">São Gonçalo</div><div class="visita-contato">Sec. Assistência Social</div></div>
+              <div style="text-align:right"><div class="visita-data">23/06/2025</div><div class="visita-status" style="color:#10b981">✓ Confirmada</div></div>
+            </div>
+          </div>
+          <div class="visita-item">
+            <div class="visita-row">
+              <div><div class="visita-nome">Petrópolis</div><div class="visita-contato">Gabinete do Prefeito</div></div>
+              <div style="text-align:right"><div class="visita-data">01/07/2025</div><div class="visita-status" style="color:#10b981">✓ Confirmada</div></div>
+            </div>
+          </div>
+          <div class="visita-item">
+            <div class="visita-row">
+              <div><div class="visita-nome">Angra dos Reis</div><div class="visita-contato">Sec. de Saúde</div></div>
+              <div style="text-align:right"><div class="visita-data">08/07/2025</div><div class="visita-status" style="color:#f59e0b">⏳ Pendente</div></div>
+            </div>
+          </div>
+          <div class="visita-item">
+            <div class="visita-row">
+              <div><div class="visita-nome">Nova Iguaçu</div><div class="visita-contato">Procuradoria Municipal</div></div>
+              <div style="text-align:right"><div class="visita-data">15/07/2025</div><div class="visita-status" style="color:#10b981">✓ Confirmada</div></div>
+            </div>
+          </div>
+          <button class="btn-nova-visita">+ Agendar Nova Visita</button>
+        </div>
+
+      </div>
+    </div>
+  </div><!-- /aba-municipios -->
+
+  <!-- OUTRAS ABAS -->
+  <div id="aba-advogados" class="hidden">
+    <div class="placeholder">
+      <div class="placeholder-icon">👩‍⚖️</div>
+      <div class="placeholder-title">Gestão de Advogados</div>
+      <div class="placeholder-desc">Cadastro, critérios de seleção, qualificação e acompanhamento dos advogados parceiros.</div>
+      <div class="placeholder-badge">🚧 Em desenvolvimento</div>
+    </div>
+  </div>
+  <div id="aba-clientes" class="hidden">
+    <div class="placeholder">
+      <div class="placeholder-icon">👥</div>
+      <div class="placeholder-title">Clientes & Casos</div>
+      <div class="placeholder-desc">Cadastro dos cidadãos atendidos, casos de alimentos e violência doméstica com prioridade de urgência.</div>
+      <div class="placeholder-badge">🚧 Em desenvolvimento</div>
+    </div>
+  </div>
+  <div id="aba-treinamento" class="hidden">
+    <div class="placeholder">
+      <div class="placeholder-icon">🎓</div>
+      <div class="placeholder-title">Área de Treinamento</div>
+      <div class="placeholder-desc">Materiais, vídeos e certificação de capacitação a distância para os advogados selecionados.</div>
+      <div class="placeholder-badge">🚧 Em desenvolvimento</div>
+    </div>
+  </div>
+  <div id="aba-comissao" class="hidden">
+    <div class="placeholder">
+      <div class="placeholder-icon">⚖️</div>
+      <div class="placeholder-title">Membros da Comissão</div>
+      <div class="placeholder-desc">Equipe da comissão estadual, hierarquia e responsabilidades por região.</div>
+      <div class="placeholder-badge">🚧 Em desenvolvimento</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+const municipios = [
+  {nome:"Angra dos Reis",            regiao:"Costa Verde",         pop:213084,  adv:1200,  rendaPC:1090, status:"negociando"},
+  {nome:"Aperibé",                   regiao:"Noroeste",            pop:11395,   adv:45,    rendaPC:660,  status:"pendente"},
+  {nome:"Araruama",                  regiao:"Lagos",               pop:138094,  adv:680,   rendaPC:920,  status:"pendente"},
+  {nome:"Areal",                     regiao:"Centro-Sul",          pop:13163,   adv:60,    rendaPC:790,  status:"pendente"},
+  {nome:"Armação dos Búzios",        regiao:"Lagos",               pop:31719,   adv:380,   rendaPC:1820, status:"pendente"},
+  {nome:"Arraial do Cabo",           regiao:"Lagos",               pop:34004,   adv:210,   rendaPC:1040, status:"pendente"},
+  {nome:"Barra do Piraí",            regiao:"Centro-Sul",          pop:97926,   adv:520,   rendaPC:980,  status:"pendente"},
+  {nome:"Barra Mansa",               regiao:"Sul Fluminense",      pop:182411,  adv:1650,  rendaPC:1260, status:"pendente"},
+  {nome:"Belford Roxo",              regiao:"Baixada Fluminense",  pop:518102,  adv:1100,  rendaPC:650,  status:"pendente"},
+  {nome:"Bom Jardim",                regiao:"Serrana",             pop:27406,   adv:120,   rendaPC:720,  status:"pendente"},
+  {nome:"Bom Jesus do Itabapoana",   regiao:"Noroeste",            pop:33793,   adv:220,   rendaPC:780,  status:"pendente"},
+  {nome:"Cabo Frio",                 regiao:"Lagos",               pop:232781,  adv:1900,  rendaPC:1220, status:"pendente"},
+  {nome:"Cachoeiras de Macacu",      regiao:"Metropolitana",       pop:56291,   adv:190,   rendaPC:810,  status:"pendente"},
+  {nome:"Cambuci",                   regiao:"Noroeste",            pop:14428,   adv:80,    rendaPC:690,  status:"pendente"},
+  {nome:"Carapebus",                 regiao:"Norte Fluminense",    pop:17059,   adv:70,    rendaPC:750,  status:"pendente"},
+  {nome:"Cardoso Moreira",           regiao:"Norte Fluminense",    pop:13024,   adv:45,    rendaPC:660,  status:"pendente"},
+  {nome:"Carmo",                     regiao:"Serrana",             pop:17872,   adv:90,    rendaPC:720,  status:"pendente"},
+  {nome:"Casimiro de Abreu",         regiao:"Norte Fluminense",    pop:45473,   adv:240,   rendaPC:1020, status:"pendente"},
+  {nome:"Comendador Levy Gasparian", regiao:"Centro-Sul",          pop:13226,   adv:50,    rendaPC:780,  status:"pendente"},
+  {nome:"Conceição de Macabu",       regiao:"Norte Fluminense",    pop:22590,   adv:90,    rendaPC:720,  status:"pendente"},
+  {nome:"Cordeiro",                  regiao:"Serrana",             pop:22041,   adv:130,   rendaPC:800,  status:"pendente"},
+  {nome:"Duas Barras",               regiao:"Serrana",             pop:11406,   adv:45,    rendaPC:700,  status:"pendente"},
+  {nome:"Duque de Caxias",           regiao:"Baixada Fluminense",  pop:919595,  adv:3800,  rendaPC:890,  status:"ativa"},
+  {nome:"Engenheiro Paulo de Frontin",regiao:"Centro-Sul",         pop:14019,   adv:55,    rendaPC:730,  status:"pendente"},
+  {nome:"Guapimirim",                regiao:"Metropolitana",       pop:61476,   adv:160,   rendaPC:760,  status:"pendente"},
+  {nome:"Iguaba Grande",             regiao:"Lagos",               pop:26940,   adv:130,   rendaPC:790,  status:"pendente"},
+  {nome:"Itaboraí",                  regiao:"Metropolitana",       pop:241958,  adv:620,   rendaPC:730,  status:"pendente"},
+  {nome:"Itaguaí",                   regiao:"Costa Verde",         pop:124052,  adv:450,   rendaPC:1020, status:"ativa"},
+  {nome:"Italva",                    regiao:"Noroeste",            pop:13918,   adv:65,    rendaPC:680,  status:"pendente"},
+  {nome:"Itaocara",                  regiao:"Noroeste",            pop:23476,   adv:110,   rendaPC:710,  status:"pendente"},
+  {nome:"Itaperuna",                 regiao:"Noroeste",            pop:100477,  adv:980,   rendaPC:1050, status:"pendente"},
+  {nome:"Itatiaia",                  regiao:"Sul Fluminense",      pop:35427,   adv:260,   rendaPC:1140, status:"pendente"},
+  {nome:"Japeri",                    regiao:"Baixada Fluminense",  pop:102808,  adv:210,   rendaPC:590,  status:"pendente"},
+  {nome:"Laje do Muriaé",            regiao:"Noroeste",            pop:8098,    adv:30,    rendaPC:650,  status:"pendente"},
+  {nome:"Macaé",                     regiao:"Norte Fluminense",    pop:244139,  adv:2100,  rendaPC:1680, status:"ativa"},
+  {nome:"Macuco",                    regiao:"Serrana",             pop:5430,    adv:22,    rendaPC:660,  status:"pendente"},
+  {nome:"Magé",                      regiao:"Metropolitana",       pop:244533,  adv:580,   rendaPC:690,  status:"pendente"},
+  {nome:"Mangaratiba",               regiao:"Costa Verde",         pop:42428,   adv:280,   rendaPC:1240, status:"pendente"},
+  {nome:"Maricá",                    regiao:"Metropolitana",       pop:181069,  adv:920,   rendaPC:1380, status:"negociando"},
+  {nome:"Mendes",                    regiao:"Centro-Sul",          pop:18022,   adv:80,    rendaPC:760,  status:"pendente"},
+  {nome:"Mesquita",                  regiao:"Baixada Fluminense",  pop:171819,  adv:420,   rendaPC:680,  status:"pendente"},
+  {nome:"Miguel Pereira",            regiao:"Centro-Sul",          pop:29095,   adv:210,   rendaPC:1040, status:"pendente"},
+  {nome:"Miracema",                  regiao:"Noroeste",            pop:29020,   adv:180,   rendaPC:780,  status:"pendente"},
+  {nome:"Natividade",                regiao:"Noroeste",            pop:15392,   adv:75,    rendaPC:710,  status:"pendente"},
+  {nome:"Nilópolis",                 regiao:"Baixada Fluminense",  pop:153712,  adv:680,   rendaPC:810,  status:"pendente"},
+  {nome:"Niterói",                   regiao:"Metropolitana",       pop:487562,  adv:8500,  rendaPC:2310, status:"ativa"},
+  {nome:"Nova Friburgo",             regiao:"Serrana",             pop:189483,  adv:1400,  rendaPC:1140, status:"pendente"},
+  {nome:"Nova Iguaçu",               regiao:"Baixada Fluminense",  pop:821128,  adv:3200,  rendaPC:780,  status:"negociando"},
+  {nome:"Paracambi",                 regiao:"Baixada Fluminense",  pop:50086,   adv:180,   rendaPC:790,  status:"pendente"},
+  {nome:"Paraíba do Sul",            regiao:"Centro-Sul",          pop:43019,   adv:220,   rendaPC:820,  status:"pendente"},
+  {nome:"Paraty",                    regiao:"Costa Verde",         pop:42419,   adv:320,   rendaPC:980,  status:"pendente"},
+  {nome:"Paty do Alferes",           regiao:"Centro-Sul",          pop:29154,   adv:90,    rendaPC:740,  status:"pendente"},
+  {nome:"Petrópolis",                regiao:"Serrana",             pop:295917,  adv:2800,  rendaPC:1320, status:"negociando"},
+  {nome:"Pinheiral",                 regiao:"Sul Fluminense",      pop:24474,   adv:130,   rendaPC:870,  status:"pendente"},
+  {nome:"Piraí",                     regiao:"Sul Fluminense",      pop:28551,   adv:180,   rendaPC:1020, status:"pendente"},
+  {nome:"Porciúncula",               regiao:"Noroeste",            pop:18022,   adv:100,   rendaPC:720,  status:"pendente"},
+  {nome:"Porto Real",                regiao:"Sul Fluminense",      pop:18007,   adv:130,   rendaPC:1380, status:"pendente"},
+  {nome:"Quatis",                    regiao:"Sul Fluminense",      pop:13657,   adv:65,    rendaPC:820,  status:"pendente"},
+  {nome:"Queimados",                 regiao:"Baixada Fluminense",  pop:145527,  adv:310,   rendaPC:610,  status:"pendente"},
+  {nome:"Quissamã",                  regiao:"Norte Fluminense",    pop:23549,   adv:95,    rendaPC:1380, status:"pendente"},
+  {nome:"Resende",                   regiao:"Sul Fluminense",      pop:135825,  adv:1300,  rendaPC:1560, status:"pendente"},
+  {nome:"Rio Bonito",                regiao:"Metropolitana",       pop:60247,   adv:280,   rendaPC:850,  status:"pendente"},
+  {nome:"Rio Claro",                 regiao:"Costa Verde",         pop:17994,   adv:60,    rendaPC:820,  status:"pendente"},
+  {nome:"Rio das Flores",            regiao:"Centro-Sul",          pop:9185,    adv:40,    rendaPC:710,  status:"pendente"},
+  {nome:"Rio das Ostras",            regiao:"Norte Fluminense",    pop:152374,  adv:980,   rendaPC:1450, status:"pendente"},
+  {nome:"Rio de Janeiro",            regiao:"Metropolitana",       pop:6211223, adv:120000,rendaPC:1842, status:"ativa"},
+  {nome:"Santa Maria Madalena",      regiao:"Serrana",             pop:10430,   adv:38,    rendaPC:640,  status:"pendente"},
+  {nome:"Santo Antônio de Pádua",    regiao:"Noroeste",            pop:43153,   adv:320,   rendaPC:840,  status:"pendente"},
+  {nome:"São Fidélis",               regiao:"Norte Fluminense",    pop:38710,   adv:210,   rendaPC:790,  status:"pendente"},
+  {nome:"São Francisco de Itabapoana",regiao:"Norte Fluminense",   pop:41649,   adv:160,   rendaPC:680,  status:"pendente"},
+  {nome:"São Gonçalo",               regiao:"Metropolitana",       pop:1084839, adv:4200,  rendaPC:820,  status:"negociando"},
+  {nome:"São João da Barra",         regiao:"Norte Fluminense",    pop:36409,   adv:190,   rendaPC:1120, status:"pendente"},
+  {nome:"São João de Meriti",        regiao:"Baixada Fluminense",  pop:471476,  adv:1400,  rendaPC:720,  status:"pendente"},
+  {nome:"São José de Ubá",           regiao:"Noroeste",            pop:8124,    adv:28,    rendaPC:640,  status:"pendente"},
+  {nome:"São Pedro da Aldeia",       regiao:"Lagos",               pop:103671,  adv:520,   rendaPC:880,  status:"pendente"},
+  {nome:"São Sebastião do Alto",     regiao:"Serrana",             pop:9254,    adv:30,    rendaPC:650,  status:"pendente"},
+  {nome:"Sapucaia",                  regiao:"Centro-Sul",          pop:17884,   adv:80,    rendaPC:730,  status:"pendente"},
+  {nome:"Saquarema",                 regiao:"Lagos",               pop:85000,   adv:380,   rendaPC:870,  status:"pendente"},
+  {nome:"Seropédica",                regiao:"Baixada Fluminense",  pop:89622,   adv:290,   rendaPC:820,  status:"pendente"},
+  {nome:"Silva Jardim",              regiao:"Norte Fluminense",    pop:22138,   adv:80,    rendaPC:690,  status:"pendente"},
+  {nome:"Sumidouro",                 regiao:"Serrana",             pop:16268,   adv:55,    rendaPC:670,  status:"pendente"},
+  {nome:"Tanguá",                    regiao:"Metropolitana",       pop:33201,   adv:80,    rendaPC:680,  status:"pendente"},
+  {nome:"Teresópolis",               regiao:"Serrana",             pop:178186,  adv:1100,  rendaPC:1050, status:"negociando"},
+  {nome:"Trajano de Morais",         regiao:"Serrana",             pop:10900,   adv:35,    rendaPC:630,  status:"pendente"},
+  {nome:"Três Rios",                 regiao:"Centro-Sul",          pop:81802,   adv:620,   rendaPC:1020, status:"pendente"},
+  {nome:"Valença",                   regiao:"Centro-Sul",          pop:73789,   adv:480,   rendaPC:960,  status:"pendente"},
+  {nome:"Varre-Sai",                 regiao:"Noroeste",            pop:10528,   adv:38,    rendaPC:630,  status:"pendente"},
+  {nome:"Vassouras",                 regiao:"Centro-Sul",          pop:37781,   adv:280,   rendaPC:1080, status:"pendente"},
+  {nome:"Volta Redonda",             regiao:"Sul Fluminense",      pop:262259,  adv:2600,  rendaPC:1480, status:"ativa"},
+  {nome:"Campos dos Goytacazes",     regiao:"Norte Fluminense",    pop:511548,  adv:3600,  rendaPC:1050, status:"ativa"},
+];
+
+// Enriquecer dados
+const maxPop = Math.max(...municipios.map(m=>m.pop));
+const maxAdv = Math.max(...municipios.map(m=>m.adv));
+const maxRenda = Math.max(...municipios.map(m=>m.rendaPC));
+
+municipios.forEach(m => {
+  m.adv10k = parseFloat(((m.adv/m.pop)*10000).toFixed(1));
+  const baixaRenda = m.rendaPC < 800;
+  const rendaMedia = m.rendaPC < 1100;
+  const poucoAdv = m.adv10k < 25;
+  const mediAdv = m.adv10k < 50;
+  if (baixaRenda && poucoAdv) m.prioridade = "critica";
+  else if (rendaMedia && mediAdv) m.prioridade = "alta";
+  else if (rendaMedia || mediAdv) m.prioridade = "media";
+  else m.prioridade = "baixa";
+});
+
+const maxAdv10k = Math.max(...municipios.map(m=>m.adv10k));
+
+const statusCfg = {
+  ativa:      {label:"Parceria Ativa", cor:"#10b981", bg:"#d1fae5"},
+  negociando: {label:"Em Negociação",  cor:"#f59e0b", bg:"#fef3c7"},
+  pendente:   {label:"Não Iniciada",   cor:"#94a3b8", bg:"#f1f5f9"},
+};
+const prioCfg = {
+  critica: {label:"Crítica",  cor:"#ef4444", bg:"#fee2e2"},
+  alta:    {label:"Alta",     cor:"#f97316", bg:"#ffedd5"},
+  media:   {label:"Média",    cor:"#f59e0b", bg:"#fef3c7"},
+  baixa:   {label:"Baixa",    cor:"#10b981", bg:"#d1fae5"},
+};
+
+const filtros = {status:"todos", prio:"todos"};
+let selecionado = null;
+
+function fmt(n) {
+  if (n>=1000000) return (n/1000000).toFixed(1)+"M";
+  if (n>=1000) return Math.round(n/1000)+"k";
+  return n.toString();
+}
+
+function miniBar(val, max, cor) {
+  const pct = Math.min(100,(val/max)*100);
+  return `<div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${pct}%;background:${cor}"></div></div>`;
+}
+
+function renderStats() {
+  const ativos = municipios.filter(m=>m.status==="ativa").length;
+  const neg    = municipios.filter(m=>m.status==="negociando").length;
+  const crit   = municipios.filter(m=>m.prioridade==="critica").length;
+  const totalAdv = municipios.reduce((s,m)=>s+m.adv,0);
+
+  document.getElementById("stat-ativos").textContent = ativos;
+  document.getElementById("stat-neg").textContent    = neg;
+  document.getElementById("stat-crit").textContent   = crit;
+  document.getElementById("stat-adv").textContent    = totalAdv.toLocaleString("pt-BR");
+
+  const pct = Math.round((ativos/93)*100);
+  document.getElementById("prog-pct").textContent = pct+"% concluído";
+  document.getElementById("prog-ativa").style.width = ((ativos/93)*100)+"%";
+  document.getElementById("prog-neg").style.width   = ((neg/93)*100)+"%";
+  document.getElementById("prog-legend").innerHTML = `
+    <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>${ativos} Ativas</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>${neg} Em negociação</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div>${93-ativos-neg} Pendentes</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>${crit} Municípios críticos</div>
+  `;
+
+  // Preencher regiões
+  const regioes = [...new Set(municipios.map(m=>m.regiao))].sort();
+  const sel = document.getElementById("sel-regiao");
+  regioes.forEach(r => {
+    const o = document.createElement("option"); o.value=r; o.textContent=r; sel.appendChild(o);
+  });
+
+  // Ranking
+  const top7 = [...municipios].sort((a,b)=>a.adv10k-b.adv10k).slice(0,7);
+  document.getElementById("ranking-list").innerHTML = top7.map((m,i) => `
+    <div class="ranking-item">
+      <div class="rank-num" style="background:${i<3?"#fee2e2":"#fff7ed"};color:${i<3?"#ef4444":"#f97316"}">${i+1}</div>
+      <div class="rank-body">
+        <div class="rank-nome">${m.nome}</div>
+        <div class="rank-sub">R$${m.rendaPC} renda · ${m.pop.toLocaleString("pt-BR")} hab</div>
+      </div>
+      <div class="rank-val">
+        <div class="rank-num-big">${m.adv10k}</div>
+        <div class="rank-unit">adv/10k</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderLista() {
+  const busca  = document.getElementById("busca").value.toLowerCase();
+  const regiao = document.getElementById("sel-regiao").value;
+  const ordem  = document.getElementById("sel-ordem").value;
+  const stFiltro = filtros.status;
+  const prFiltro = filtros.prio;
+
+  let lista = municipios.filter(m => {
+    if (regiao && m.regiao !== regiao) return false;
+    if (stFiltro !== "todos" && m.status !== stFiltro) return false;
+    if (prFiltro !== "todos" && m.prioridade !== prFiltro) return false;
+    if (busca && !m.nome.toLowerCase().includes(busca)) return false;
+    return true;
+  });
+
+  const ordMap = {critica:0,alta:1,media:2,baixa:3};
+  lista.sort((a,b) => {
+    if (ordem==="nome")       return a.nome.localeCompare(b.nome);
+    if (ordem==="pop")        return b.pop - a.pop;
+    if (ordem==="adv10k")     return a.adv10k - b.adv10k;
+    if (ordem==="renda")      return a.rendaPC - b.rendaPC;
+    if (ordem==="prioridade") return ordMap[a.prioridade] - ordMap[b.prioridade];
+    return 0;
+  });
+
+  document.getElementById("lista-count").textContent = lista.length+" municípios · Clique para detalhar";
+
+  document.getElementById("mun-list").innerHTML = lista.map(m => {
+    const sc = statusCfg[m.status];
+    const pc = prioCfg[m.prioridade];
+    const ratCor = m.adv10k<25?"#ef4444":m.adv10k<50?"#f59e0b":"#10b981";
+    const isSel = selecionado===m.nome;
+    return `
+    <div class="mun-card ${isSel?"selected":""}" onclick="toggleDetalhe('${m.nome.replace(/'/g,"\\'")}')">
+      <div class="mun-inner">
+        <div class="mun-body">
+          <div class="mun-header">
+            <span class="mun-nome">${m.nome}</span>
+            <span class="mun-regiao">· ${m.regiao}</span>
+          </div>
+          <div class="mini-stats">
+            <div>
+              <div class="mini-stat-label">
+                <span class="mini-stat-key">População</span>
+                <span class="mini-stat-val">${fmt(m.pop)}</span>
+              </div>
+              ${miniBar(m.pop,maxPop,"#6366f1")}
+            </div>
+            <div>
+              <div class="mini-stat-label">
+                <span class="mini-stat-key">Advogados OAB</span>
+                <span class="mini-stat-val">${fmt(m.adv)}</span>
+              </div>
+              ${miniBar(m.adv,maxAdv,"#0ea5e9")}
+            </div>
+            <div>
+              <div class="mini-stat-label">
+                <span class="mini-stat-key">Renda per capita</span>
+                <span class="mini-stat-val">R$${m.rendaPC.toLocaleString("pt-BR")}</span>
+              </div>
+              ${miniBar(m.rendaPC,maxRenda,"#10b981")}
+            </div>
+          </div>
+          <div class="ratio-row">
+            <div class="ratio-label">
+              <span class="ratio-key">Advogados por 10k hab</span>
+              <span style="font-size:11px;font-weight:900;color:${ratCor}">${m.adv10k}</span>
+            </div>
+            ${miniBar(m.adv10k,maxAdv10k,ratCor)}
+          </div>
+        </div>
+        <div class="mun-badges">
+          <span class="badge" style="background:${sc.bg};color:${sc.cor}">${sc.label}</span>
+          <span class="badge" style="background:${pc.bg};color:${pc.cor}">Prioridade ${pc.label}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toggleDetalhe(nome) {
+  if (selecionado === nome) {
+    selecionado = null;
+    fecharDetalhe();
+  } else {
+    selecionado = nome;
+    abrirDetalhe(nome);
+  }
+  renderLista();
+}
+
+function isMobile() { return window.innerWidth <= 700; }
+
+function abrirDetalhe(nome) {
+  const m = municipios.find(x=>x.nome===nome);
+  if (!m) return;
+  const pc = prioCfg[m.prioridade];
+  const ratCor = m.adv10k<25?"#ef4444":m.adv10k<50?"#f59e0b":"#10b981";
+  const analises = {
+    critica:`Baixa renda (R$${m.rendaPC}/mês) combinada com cobertura jurídica muito abaixo da média. Município prioritário para implantação imediata — população vulnerável sem acesso a advogados.`,
+    alta:`Renda moderada com cobertura jurídica insuficiente. Necessidade expressiva de advogados da Advocacia Dativa para atender demandas de alimentos e violência doméstica.`,
+    media:`Situação de atenção moderada. A parceria trará impacto relevante na população vulnerável que ainda não tem acesso adequado à justiça.`,
+    baixa:`Melhor relação advogado/habitante e renda per capita. A parceria complementa o sistema existente e amplia o alcance da OAB.`,
+  };
+  document.getElementById("d-nome").textContent = m.nome;
+  document.getElementById("d-regiao").textContent = m.regiao;
+  document.getElementById("d-pop").textContent = m.pop.toLocaleString("pt-BR");
+  document.getElementById("d-adv").textContent = m.adv.toLocaleString("pt-BR");
+  document.getElementById("d-ratio").textContent = m.adv10k;
+  document.getElementById("d-ratio").style.color = ratCor;
+  document.getElementById("d-renda").textContent = "R$"+m.rendaPC.toLocaleString("pt-BR");
+  document.getElementById("d-analise").style.background = pc.bg;
+  document.getElementById("d-analise-titulo").style.color = pc.cor;
+  document.getElementById("d-analise-titulo").textContent = "⚡ PRIORIDADE "+pc.label.toUpperCase();
+  document.getElementById("d-analise-texto").textContent = analises[m.prioridade];
+  document.getElementById("detalhe-placeholder").classList.add("hidden");
+  document.getElementById("detalhe-panel").classList.remove("hidden");
+  // No mobile, faz scroll suave até o painel de detalhe
+  if (isMobile()) {
+    setTimeout(() => {
+      document.getElementById("detalhe-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
+}
+
+function fecharDetalhe() {
+  selecionado = null;
+  document.getElementById("detalhe-placeholder").classList.remove("hidden");
+  document.getElementById("detalhe-panel").classList.add("hidden");
+  renderLista();
+}
+
+function setFiltro(grupo, val, btn) {
+  filtros[grupo] = val;
+  document.querySelectorAll(`[data-grupo="${grupo}"]`).forEach(b => {
+    b.classList.remove("on");
+  });
+  btn.classList.add("on");
+  renderLista();
+}
+
+function setAba(id, btn) {
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  btn.classList.add("active");
+  ["municipios","advogados","clientes","treinamento","comissao"].forEach(a=>{
+    document.getElementById("aba-"+a).classList.toggle("hidden", a!==id);
+  });
+}
+
+// INIT
+renderStats();
+renderLista();
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   ADVOCACIA DATIVA — Global Styles
+   As cores principais já estão no tailwind.config.ts.
+   Aqui ficam apenas variáveis CSS e utilitários base.
+   ============================================================ */
+
+:root {
+  /* Cores Dativa como variáveis CSS (para uso em contextos não-Tailwind) */
+  --azul-principal: #1e3a5f;
+  --azul-medio: #2d5986;
+  --dourado: #c9a227;
+  --fundo: #f0f4f8;
+  --sucesso: #10b981;
+  --alerta: #f59e0b;
+  --erro: #ef4444;
+
+  /* Scrollbar customizada */
+  --scrollbar-track: #f0f4f8;
+  --scrollbar-thumb: #c5d5e8;
+}
+
+.dark {
+  --fundo: #0f1824;
+  --scrollbar-track: #0f1824;
+  --scrollbar-thumb: #2d3f55;
+}
+
+/* Scrollbar sutil */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 99px; }
+
+/* Transição suave para dark mode */
+* {
+  transition-property: background-color, border-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* Evitar transição em imagens */
+img, svg { transition: none; }
