@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   LayoutDashboard, MapPin, Briefcase, Users, User,
-  UserShield, BarChart2, FileText, Mail, Settings,
+  ShieldCheck, BarChart2, FileText, Mail, Settings,
   Clock, LogOut, Scale
 } from 'lucide-react'
 
@@ -37,7 +37,7 @@ function getNav(nivel: string): NavSection[] {
           items: [
             { icon: <Users size={18} />, label: 'Advogados', href: '/dashboard/owner/advogados' },
             { icon: <User size={18} />, label: 'Clientes', href: '/dashboard/owner/clientes' },
-            { icon: <UserShield size={18} />, label: 'Comissão', href: '/dashboard/owner/comissao' },
+            { icon: <ShieldCheck size={18} />, label: 'Comissão', href: '/dashboard/owner/comissao' },
           ],
         },
         {
