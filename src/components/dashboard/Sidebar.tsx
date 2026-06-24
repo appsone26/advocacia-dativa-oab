@@ -13,7 +13,6 @@ type MenuItem = {
   href: string
   label: string
   icon: React.ReactNode
-  exactMatch?: boolean
 }
 
 function getMenuItems(nivel: string): MenuItem[] {
@@ -22,24 +21,17 @@ function getMenuItems(nivel: string): MenuItem[] {
   switch (nivel) {
     case 'owner':
       return [
-        { href: '/dashboard/owner',      label: 'Visão Geral',        icon: icon(LayoutDashboard), exactMatch: true },
-        { href: '/dashboard/owner',      label: '92 Municípios',      icon: icon(MapPin),          exactMatch: true },
-        { href: '/dashboard/owner',      label: 'Gestores',           icon: icon(Building2),       exactMatch: true },
-        { href: '/dashboard/owner',      label: 'Advogados',          icon: icon(UserCheck),       exactMatch: true },
-        { href: '/dashboard/owner',      label: 'Clientes',           icon: icon(Users),           exactMatch: true },
-        { href: '/dashboard/owner',      label: 'Casos',              icon: icon(FileText),        exactMatch: true },
-        { href: '/dashboard/owner',      label: 'Comissão',           icon: icon(Shield),          exactMatch: true },
-        { href: '/dashboard/owner',      label: 'Mensagens em massa', icon: icon(MessageSquare),   exactMatch: true },
-        { href: '/dashboard/relatorios', label: 'Relatórios',         icon: icon(BarChart2),       exactMatch: true },
-        { href: '/dashboard/relatorios', label: 'Auditoria',          icon: icon(ScrollText),      exactMatch: true },
-        { href: '/dashboard/owner',      label: 'Configurações',      icon: icon(Settings),        exactMatch: true },
+        { href: '/dashboard/owner',      label: 'Visão Geral',        icon: icon(LayoutDashboard) },
+        { href: '/dashboard/usuarios',   label: 'Usuários',           icon: icon(Users) },
+        { href: '/dashboard/relatorios', label: 'Relatórios',         icon: icon(BarChart2) },
+        { href: '/dashboard/relatorios', label: 'Auditoria',          icon: icon(ScrollText) },
       ]
     case 'comissao':
       return [
-        { href: '/dashboard/comissao',    label: 'Visão Geral',  icon: icon(LayoutDashboard) },
-        { href: '/dashboard/comissao',    label: 'Municípios',   icon: icon(MapPin) },
-        { href: '/dashboard/comissao',    label: 'Casos',        icon: icon(FileText) },
-        { href: '/dashboard/relatorios',  label: 'Relatórios',   icon: icon(BarChart2) },
+        { href: '/dashboard/comissao',   label: 'Visão Geral',  icon: icon(LayoutDashboard) },
+        { href: '/dashboard/comissao',   label: 'Municípios',   icon: icon(MapPin) },
+        { href: '/dashboard/comissao',   label: 'Casos',        icon: icon(FileText) },
+        { href: '/dashboard/relatorios', label: 'Relatórios',   icon: icon(BarChart2) },
       ]
     case 'gestor':
       return [
@@ -71,9 +63,6 @@ export default function Sidebar({ nivel, open, onClose, isDesktop }: Props) {
   const pathname = usePathname()
   const router = useRouter()
   const items = getMenuItems(nivel)
-
-  // Só o primeiro item de cada href único fica ativo
-  const seenHrefs = new Set<string>()
 
   async function handleLogout() {
     const supabase = createClient()
@@ -127,11 +116,8 @@ export default function Sidebar({ nivel, open, onClose, isDesktop }: Props) {
 
       <div style={{ flex: 1 }}>
         {items.map((item, idx) => {
-          const isCurrentPage = pathname === item.href
-          const isFirstOfHref = !seenHrefs.has(item.href)
-          seenHrefs.add(item.href)
-          // Ativo apenas se está na página E é o primeiro item com esse href
-          const active = isCurrentPage && isFirstOfHref
+          const active = pathname === item.href ||
+            (item.href !== '/dashboard/owner' && pathname.startsWith(item.href))
 
           return (
             <Link
