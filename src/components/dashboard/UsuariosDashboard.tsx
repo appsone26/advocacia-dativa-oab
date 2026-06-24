@@ -111,18 +111,53 @@ export default function UsuariosDashboard({
     }))
   }
 
-  function togglePermissao(k: string) {
+  function toggleTodasRegioes() {
     setForm(p => ({
       ...p,
-      permissoes: p.permissoes.includes(k)
+      regioes: p.regioes.length === REGIOES.length ? [] : [...REGIOES]
+    }))
+  }
+
+  function toggleTodasPermissoes() {
+    const todas = Object.keys(PERMISSOES_LABELS)
+    setForm(p => ({
+      ...p,
+      permissoes: p.permissoes.length === todas.length ? [] : [...todas],
+      liberar_tudo: p.permissoes.length !== todas.length,
+    }))
+  }
+
+  function togglePermissao(k: string) {
+    setForm(p => {
+      const novasPermissoes = p.permissoes.includes(k)
         ? p.permissoes.filter(x => x !== k)
         : [...p.permissoes, k]
-    }))
+      const todas = Object.keys(PERMISSOES_LABELS)
+      return {
+        ...p,
+        permissoes: novasPermissoes,
+        liberar_tudo: novasPermissoes.length === todas.length,
+      }
+    })
   }
 
   async function salvar() {
     if (!form.nome || !form.email) {
       setMsgErro('Nome e email são obrigatórios.')
+      return
+    }
+    if (form.nivel === 'comissao') {
+      if (form.regioes.length === 0) {
+        setMsgErro('Selecione pelo menos uma região de atuação.')
+        return
+      }
+      if (form.permissoes.length === 0) {
+        setMsgErro('Selecione pelo menos uma permissão.')
+        return
+      }
+    }
+    if (form.nivel === 'gestor' && !form.municipio_id) {
+      setMsgErro('Selecione o município do gestor.')
       return
     }
     setSalvando(true)
@@ -485,7 +520,19 @@ export default function UsuariosDashboard({
               {/* Regiões (comissão) */}
               {form.nivel === 'comissao' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1.5">Regiões de atuação</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-medium text-gray-600">Regiões de atuação</label>
+                    <button
+                      onClick={toggleTodasRegioes}
+                      className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors
+                        ${form.regioes.length === REGIOES.length
+                          ? 'border-[#1e3a5f] bg-[#1e3a5f]/5 text-[#1e3a5f] font-medium'
+                          : 'border-gray-200 text-gray-500'
+                        }`}>
+                      <MapPin size={11} />
+                      Todas as regiões
+                    </button>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {REGIOES.map(r => (
                       <button
@@ -509,33 +556,31 @@ export default function UsuariosDashboard({
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-medium text-gray-600">Permissões</label>
                     <button
-                      onClick={() => setForm(p => ({ ...p, liberar_tudo: !p.liberar_tudo }))}
+                      onClick={toggleTodasPermissoes}
                       className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors
                         ${form.liberar_tudo
-                          ? 'border-amber-300 bg-amber-50 text-amber-700'
+                          ? 'border-amber-300 bg-amber-50 text-amber-700 font-medium'
                           : 'border-gray-200 text-gray-500'
                         }`}>
                       <Shield size={11} />
-                      Liberar tudo
+                      Marcar todas
                     </button>
                   </div>
-                  {!form.liberar_tudo && (
-                    <div className="space-y-1.5">
-                      {Object.entries(PERMISSOES_LABELS).map(([key, label]) => (
-                        <label key={key} className="flex items-center gap-2.5 cursor-pointer group">
-                          <input
-                            type="checkbox"
-                            checked={form.permissoes.includes(key)}
-                            onChange={() => togglePermissao(key)}
-                            className="w-4 h-4 rounded border-gray-300 text-[#1e3a5f] focus:ring-[#1e3a5f]/20"
-                          />
-                          <span className="text-sm text-gray-700 group-hover:text-[#1e3a5f]">{label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
+                  <div className="space-y-1.5">
+                    {Object.entries(PERMISSOES_LABELS).map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-2.5 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={form.permissoes.includes(key)}
+                          onChange={() => togglePermissao(key)}
+                          className="w-4 h-4 rounded border-gray-300 text-[#1e3a5f] focus:ring-[#1e3a5f]/20"
+                        />
+                        <span className="text-sm text-gray-700 group-hover:text-[#1e3a5f]">{label}</span>
+                      </label>
+                    ))}
+                  </div>
                   {form.liberar_tudo && (
-                    <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">
+                    <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg mt-2">
                       Este membro terá acesso completo a todas as funcionalidades da Comissão.
                     </p>
                   )}
@@ -559,7 +604,11 @@ export default function UsuariosDashboard({
               </button>
               <button
                 onClick={salvar}
-                disabled={salvando || !form.nome || !form.email}
+                disabled={
+                  salvando || !form.nome || !form.email ||
+                  (form.nivel === 'comissao' && (form.regioes.length === 0 || form.permissoes.length === 0)) ||
+                  (form.nivel === 'gestor' && !form.municipio_id)
+                }
                 className="flex items-center gap-2 px-4 py-2 text-sm bg-[#1e3a5f] text-white rounded-lg hover:bg-[#2d5986] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 {salvando ? <><Loader2 size={14} className="animate-spin" /> Cadastrando...</> : 'Cadastrar e enviar email'}
               </button>
