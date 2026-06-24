@@ -228,7 +228,7 @@ export default function UsuariosDashboard({
   const totalAtivos = listaAtual.filter(u => u.ativo).length
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="p-4 md:p-6 space-y-6 max-w-5xl mx-auto w-full overflow-x-hidden">
 
       {/* Cabeçalho */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -263,14 +263,14 @@ export default function UsuariosDashboard({
           <button
             key={key}
             onClick={() => setAba(key as Aba)}
-            className={`rounded-xl border p-4 text-left transition-all
+            className={`rounded-xl border p-3 md:p-4 text-left transition-all
               ${aba === key
                 ? 'border-[#1e3a5f] bg-[#1e3a5f]/5'
                 : 'border-gray-200 bg-white hover:border-gray-300'
               }`}>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</p>
+            <p className="text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-tight md:tracking-wide mb-1 truncate">{label}</p>
             <p className="text-2xl font-bold text-[#1e3a5f]">{total}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{ativos} ativo{ativos !== 1 ? 's' : ''}</p>
+            <p className="text-xs text-gray-400 mt-0.5 truncate">{ativos} ativo{ativos !== 1 ? 's' : ''}</p>
           </button>
         ))}
       </div>
@@ -298,28 +298,28 @@ export default function UsuariosDashboard({
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
               <tr>
-                <th className="px-4 py-2 text-left">Nome</th>
-                <th className="px-4 py-2 text-left">Email</th>
-                {aba === 'comissao' && <th className="px-4 py-2 text-left">Regiões</th>}
-                {aba === 'comissao' && <th className="px-4 py-2 text-left">Acesso</th>}
-                {aba !== 'comissao' && <th className="px-4 py-2 text-left">Município</th>}
-                {aba === 'advogados' && <th className="px-4 py-2 text-left">OAB</th>}
-                <th className="px-4 py-2 text-left">1º acesso</th>
-                <th className="px-4 py-2 text-left">Status</th>
-                <th className="px-4 py-2 text-left">Ação</th>
+                <th className="px-4 py-2 text-left whitespace-nowrap">Nome</th>
+                <th className="px-4 py-2 text-left whitespace-nowrap">Email</th>
+                {aba === 'comissao' && <th className="px-4 py-2 text-left whitespace-nowrap">Regiões</th>}
+                {aba === 'comissao' && <th className="px-4 py-2 text-left whitespace-nowrap">Acesso</th>}
+                {aba !== 'comissao' && <th className="px-4 py-2 text-left whitespace-nowrap">Município</th>}
+                {aba === 'advogados' && <th className="px-4 py-2 text-left whitespace-nowrap">OAB</th>}
+                <th className="px-4 py-2 text-left whitespace-nowrap">1º acesso</th>
+                <th className="px-4 py-2 text-left whitespace-nowrap">Status</th>
+                <th className="px-4 py-2 text-left whitespace-nowrap">Ação</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {listaAtual.map(u => (
                 <tr key={u.id} className={`hover:bg-gray-50 transition-colors ${!u.ativo ? 'opacity-50' : ''}`}>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     <p className="font-medium text-gray-800">{u.nome}</p>
                     {u.cargo && <p className="text-xs text-gray-400">{u.cargo}</p>}
                   </td>
-                  <td className="px-4 py-3 text-gray-500">{u.email}</td>
+                  <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{u.email}</td>
 
                   {aba === 'comissao' && (
                     <td className="px-4 py-3">
