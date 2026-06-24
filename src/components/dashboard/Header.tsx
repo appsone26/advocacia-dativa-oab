@@ -37,15 +37,19 @@ export default function Header({ nome, nivel, onMenuClick }: Props) {
     <header style={{
       background: '#1e3a5f',
       color: '#fff',
-      height: '52px',
+      // Reserva o espaço da barra de status do iPhone (relógio/wifi) no modo app
+      paddingTop: 'env(safe-area-inset-top)',
+      height: 'calc(52px + env(safe-area-inset-top))',
       display: 'flex',
       alignItems: 'center',
-      padding: '0 16px',
+      paddingLeft: '16px',
+      paddingRight: '16px',
       gap: '12px',
       position: 'sticky',
       top: 0,
       zIndex: 30,
       flexShrink: 0,
+      boxSizing: 'border-box',
     }}>
       {/* Hambúrguer — só mobile */}
       <button
