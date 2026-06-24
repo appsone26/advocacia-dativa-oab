@@ -15,7 +15,7 @@ export default async function RelatoriosPage() {
     .order('criado_em', { ascending: false })
     .limit(200)
 
-  const { data: municipios } = await supabase
+  const { data: municipios } = await supabase 
     .from('municipios')
     .select('id, nome, regiao')
     .order('nome')
