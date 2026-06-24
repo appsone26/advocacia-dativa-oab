@@ -21,38 +21,38 @@ function getMenuItems(nivel: string): MenuItem[] {
   switch (nivel) {
     case 'owner':
       return [
-        { href: '/dashboard/owner',               label: 'Visão Geral',       icon: icon(LayoutDashboard) },
-        { href: '/dashboard/owner/municipios',    label: '92 Municípios',     icon: icon(MapPin) },
-        { href: '/dashboard/owner/gestores',      label: 'Gestores',          icon: icon(Building2) },
-        { href: '/dashboard/owner/advogados',     label: 'Advogados',         icon: icon(UserCheck) },
-        { href: '/dashboard/owner/clientes',      label: 'Clientes',          icon: icon(Users) },
-        { href: '/dashboard/owner/casos',         label: 'Casos',             icon: icon(FileText) },
-        { href: '/dashboard/owner/comissao',      label: 'Comissão',          icon: icon(Shield) },
-        { href: '/dashboard/owner/mensagens',     label: 'Mensagens em massa',icon: icon(MessageSquare) },
-        { href: '/dashboard/owner/relatorios',    label: 'Relatórios',        icon: icon(BarChart2) },
-        { href: '/dashboard/owner/auditoria',     label: 'Auditoria',         icon: icon(ScrollText) },
-        { href: '/dashboard/owner/configuracoes', label: 'Configurações',     icon: icon(Settings) },
+        { href: '/dashboard/owner',       label: 'Visão Geral',        icon: icon(LayoutDashboard) },
+        { href: '/dashboard/owner',       label: '92 Municípios',      icon: icon(MapPin) },
+        { href: '/dashboard/owner',       label: 'Gestores',           icon: icon(Building2) },
+        { href: '/dashboard/owner',       label: 'Advogados',          icon: icon(UserCheck) },
+        { href: '/dashboard/owner',       label: 'Clientes',           icon: icon(Users) },
+        { href: '/dashboard/owner',       label: 'Casos',              icon: icon(FileText) },
+        { href: '/dashboard/owner',       label: 'Comissão',           icon: icon(Shield) },
+        { href: '/dashboard/owner',       label: 'Mensagens em massa', icon: icon(MessageSquare) },
+        { href: '/dashboard/relatorios',  label: 'Relatórios',         icon: icon(BarChart2) },
+        { href: '/dashboard/relatorios',  label: 'Auditoria',          icon: icon(ScrollText) },
+        { href: '/dashboard/owner',       label: 'Configurações',      icon: icon(Settings) },
       ]
     case 'comissao':
       return [
-        { href: '/dashboard/comissao',            label: 'Visão Geral',       icon: icon(LayoutDashboard) },
-        { href: '/dashboard/comissao/municipios', label: 'Municípios',        icon: icon(MapPin) },
-        { href: '/dashboard/comissao/casos',      label: 'Casos',             icon: icon(FileText) },
-        { href: '/dashboard/comissao/relatorios', label: 'Relatórios',        icon: icon(BarChart2) },
+        { href: '/dashboard/comissao',    label: 'Visão Geral',        icon: icon(LayoutDashboard) },
+        { href: '/dashboard/comissao',    label: 'Municípios',         icon: icon(MapPin) },
+        { href: '/dashboard/comissao',    label: 'Casos',              icon: icon(FileText) },
+        { href: '/dashboard/relatorios',  label: 'Relatórios',         icon: icon(BarChart2) },
       ]
     case 'gestor':
       return [
-        { href: '/dashboard/gestor',              label: 'Meu Município',     icon: icon(LayoutDashboard) },
-        { href: '/dashboard/gestor/advogados',    label: 'Advogados',         icon: icon(UserCheck) },
-        { href: '/dashboard/gestor/clientes',     label: 'Clientes',          icon: icon(Users) },
-        { href: '/dashboard/gestor/casos',        label: 'Casos',             icon: icon(FileText) },
-        { href: '/dashboard/gestor/relatorios',   label: 'Relatórios',        icon: icon(BarChart2) },
+        { href: '/dashboard/gestor',      label: 'Meu Município',      icon: icon(LayoutDashboard) },
+        { href: '/dashboard/gestor',      label: 'Advogados',          icon: icon(UserCheck) },
+        { href: '/dashboard/gestor',      label: 'Clientes',           icon: icon(Users) },
+        { href: '/dashboard/gestor',      label: 'Casos',              icon: icon(FileText) },
+        { href: '/dashboard/relatorios',  label: 'Relatórios',         icon: icon(BarChart2) },
       ]
     case 'advogado':
       return [
-        { href: '/dashboard/advogado',            label: 'Meu Painel',        icon: icon(LayoutDashboard) },
-        { href: '/dashboard/advogado/casos',      label: 'Meus Casos',        icon: icon(Scale) },
-        { href: '/dashboard/advogado/historico',  label: 'Histórico',         icon: icon(ScrollText) },
+        { href: '/dashboard/advogado',    label: 'Meu Painel',         icon: icon(LayoutDashboard) },
+        { href: '/dashboard/advogado',    label: 'Meus Casos',         icon: icon(Scale) },
+        { href: '/dashboard/advogado',    label: 'Histórico',          icon: icon(ScrollText) },
       ]
     default:
       return []
@@ -109,7 +109,6 @@ export default function Sidebar({ nivel, open, onClose, isDesktop }: Props) {
 
   return (
     <nav style={sidebarStyle} aria-label="Menu principal">
-      {/* Botão fechar — só no mobile */}
       {!isDesktop && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 12px 8px' }}>
           <button
@@ -122,14 +121,12 @@ export default function Sidebar({ nivel, open, onClose, isDesktop }: Props) {
         </div>
       )}
 
-      {/* Itens do menu */}
       <div style={{ flex: 1 }}>
-        {items.map(item => {
-          const active = pathname === item.href ||
-            (item.href !== '/dashboard/' + nivel && pathname.startsWith(item.href + '/'))
+        {items.map((item, idx) => {
+          const active = pathname === item.href
           return (
             <Link
-              key={item.href}
+              key={`${item.href}-${idx}`}
               href={item.href}
               onClick={!isDesktop ? onClose : undefined}
               style={{
@@ -155,7 +152,6 @@ export default function Sidebar({ nivel, open, onClose, isDesktop }: Props) {
         })}
       </div>
 
-      {/* Rodapé com Sair */}
       <div style={{ borderTop: '1px solid #f1f5f9', padding: '8px 0' }}>
         <button
           onClick={handleLogout}
