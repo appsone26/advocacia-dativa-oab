@@ -379,7 +379,7 @@ export default function OwnerDashboard({ municipios, gestores }: Props) {
 
             {/* Tabela / lista */}
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y divide-gray-50 overflow-y-auto max-h-[calc(100vh-320px)]">
                 {municipiosFiltrados.length === 0 ? (
                   <div className="py-12 text-center text-gray-400 text-sm">
                     Nenhum município encontrado com os filtros selecionados.
