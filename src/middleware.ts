@@ -11,6 +11,9 @@ const PUBLIC_ROUTES = [
   '/auth/primeiro-acesso',
 ]
 const isPublicCadastro = (path: string) => path.startsWith('/cadastro/')
+// Rotas de API públicas (chamadas sem sessão: auto-cadastro e recuperação de senha)
+const PUBLIC_API = ['/api/cadastro', '/api/recuperar-senha']
+const isPublicApi = (path: string) => PUBLIC_API.some(r => path.startsWith(r))
 // Rotas compartilhadas — acessíveis por qualquer usuário autenticado
 const SHARED_ROUTES = [
   '/dashboard/relatorios',
@@ -60,6 +63,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/auth/login', request.url))
   }
   // 2. Rotas públicas
+  if (isPublicApi(pathname)) {
+    return supabaseResponse
+  }
   if (
     PUBLIC_ROUTES.some(route => pathname.startsWith(route)) ||
     isPublicCadastro(pathname)
