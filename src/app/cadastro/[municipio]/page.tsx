@@ -77,6 +77,8 @@ export default function CadastroClientePage() {
   const [etapa, setEtapa] = useState<Etapa>(1)
   const [carregando, setCarregando] = useState(false)
   const [mostrarSenha, setMostrarSenha] = useState(false)
+  const [erroSubmit, setErroSubmit] = useState('')
+  const [protocolo, setProtocolo] = useState('')
 
   const [pessoais, setPessoais] = useState<DadosPessoais>({
     nome: '', cpf: '', telefone: '', email: '', endereco: '', bairro: ''
@@ -89,7 +91,8 @@ export default function CadastroClientePage() {
   // Validações por etapa
   const etapa1Valida = pessoais.nome.trim().length >= 3 &&
     pessoais.cpf.replace(/\D/g, '').length === 11 &&
-    pessoais.telefone.replace(/\D/g, '').length >= 10
+    pessoais.telefone.replace(/\D/g, '').length >= 10 &&
+    /^\S+@\S+\.\S+$/.test(pessoais.email)
 
   const etapa2Valida = caso.area !== '' && caso.descricao.trim().length >= 20
 
@@ -99,10 +102,37 @@ export default function CadastroClientePage() {
 
   async function handleSubmit() {
     setCarregando(true)
-    // Simulação — ligação ao Supabase vem depois
-    await new Promise(r => setTimeout(r, 1500))
-    setCarregando(false)
-    setEtapa(4)
+    setErroSubmit('')
+    try {
+      const res = await fetch('/api/cadastro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          municipio: municipioSlug,
+          nome: pessoais.nome,
+          cpf: pessoais.cpf,
+          telefone: pessoais.telefone,
+          email: pessoais.email,
+          endereco: pessoais.endereco,
+          bairro: pessoais.bairro,
+          area: caso.area,
+          descricao: caso.descricao,
+          senha: acesso.senha,
+          lgpd: acesso.lgpd1 && acesso.lgpd2,
+        }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErroSubmit(json.error ?? 'Não foi possível concluir o cadastro. Tente novamente.')
+        return
+      }
+      setProtocolo(json.protocolo ?? '')
+      setEtapa(4)
+    } catch {
+      setErroSubmit('Erro de conexão. Verifique sua internet e tente novamente.')
+    } finally {
+      setCarregando(false)
+    }
   }
 
   return (
@@ -190,9 +220,12 @@ export default function CadastroClientePage() {
                   placeholder="(21) 99999-9999" style={inputStyle} inputMode="tel" />
               </Campo>
 
-              <Campo label="E-mail (opcional)">
+              <Campo label="E-mail *">
                 <input value={pessoais.email} onChange={e => setPessoais(p => ({ ...p, email: e.target.value }))}
                   placeholder="seu@email.com" style={inputStyle} type="email" />
+                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
+                  Usado para criar seu acesso e receber atualizações do caso.
+                </div>
               </Campo>
 
               <Campo label="Endereço">
@@ -327,6 +360,12 @@ export default function CadastroClientePage() {
                 </label>
               </div>
 
+              {erroSubmit && (
+                <div style={{ background: '#fee2e2', border: '1px solid #fca5a5', color: '#dc2626', borderRadius: '8px', padding: '10px 14px', fontSize: '13px', marginBottom: '12px' }}>
+                  {erroSubmit}
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '10px' }}>
                 <BotaoVoltar onClick={() => setEtapa(2)} />
                 <button
@@ -355,9 +394,15 @@ export default function CadastroClientePage() {
               <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#1e3a5f', marginBottom: '8px' }}>
                 Cadastro realizado!
               </h2>
-              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: 1.6, marginBottom: '20px' }}>
+              <p style={{ fontSize: '14px', color: '#64748b', lineHeight: 1.6, marginBottom: '16px' }}>
                 Seu pedido foi recebido com sucesso. Um advogado da Advocacia Dativa entrará em contato em breve.
               </p>
+              {protocolo && (
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '1px' }}>PROTOCOLO</div>
+                  <div style={{ fontSize: '22px', fontWeight: 900, color: '#166534', fontFamily: 'monospace', letterSpacing: '1px' }}>#{protocolo}</div>
+                </div>
+              )}
               <div style={{ background: '#f0f4f8', borderRadius: '12px', padding: '16px', marginBottom: '20px', textAlign: 'left' }}>
                 <div style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', marginBottom: '8px' }}>PRÓXIMOS PASSOS</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

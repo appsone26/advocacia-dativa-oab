@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { Menu, Bell, LogOut, ChevronDown, Search } from 'lucide-react'
+import { Menu, LogOut, ChevronDown, Search } from 'lucide-react'
+import NotificacoesSininho from '@/components/dashboard/NotificacoesSininho'
 
 const LABEL_NIVEL: Record<string, string> = {
   owner:    'Presidência',
@@ -89,19 +90,8 @@ export default function Header({ nome, nivel, onMenuClick }: Props) {
 
       <div style={{ flex: 1 }} />
 
-      {/* Sininho de notificações */}
-      <button
-        style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: '4px', lineHeight: 0, position: 'relative' }}
-        aria-label="Notificações"
-      >
-        <Bell size={20} />
-        {/* Badge — aparece quando tiver notificações */}
-        <span style={{
-          position: 'absolute', top: '2px', right: '2px',
-          width: '8px', height: '8px', borderRadius: '50%',
-          background: '#c9a227', border: '2px solid #1e3a5f'
-        }} />
-      </button>
+      {/* Sininho de notificações — polling a cada 30s */}
+      <NotificacoesSininho />
 
       {/* Avatar + nome + menu de logout */}
       <div style={{ position: 'relative' }}>

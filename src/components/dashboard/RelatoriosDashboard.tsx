@@ -15,6 +15,8 @@ interface Caso {
   status: string
   area_juridica: string
   municipio_id: string
+  numero_processo?: string | null
+  data_conclusao?: string | null
   criado_em: string
   atualizado_em: string
 }
@@ -133,13 +135,16 @@ export default function RelatoriosDashboard({ casos, auditLog, municipios }: Pro
     return lista
   }, [casos, periodo, filtroArea, filtroRegiao, municipioMap])
 
+  // Status reais do schema: aguardando | atribuido | em_andamento | cancelado.
+  // Conclusão é derivada de data_conclusao != null.
   const totais = useMemo(() => {
     const total = casosFiltrados.length
-    const concluidos = casosFiltrados.filter(c => c.status === 'concluido').length
-    const andamento = casosFiltrados.filter(c => c.status === 'em_andamento' || c.status === 'aberto').length
-    const recusados = casosFiltrados.filter(c => c.status === 'recusado').length
+    const concluidos = casosFiltrados.filter(c => !!c.data_conclusao).length
+    const andamento = casosFiltrados.filter(c => c.status === 'em_andamento' && !c.data_conclusao).length
+    const naFila = casosFiltrados.filter(c => c.status === 'aguardando' || c.status === 'atribuido').length
+    const cancelados = casosFiltrados.filter(c => c.status === 'cancelado').length
     const resolucao = total > 0 ? Math.round((concluidos / total) * 100) : 0
-    return { total, concluidos, andamento, recusados, resolucao }
+    return { total, concluidos, andamento, naFila, cancelados, resolucao }
   }, [casosFiltrados])
 
   // Casos por área
@@ -158,7 +163,8 @@ export default function RelatoriosDashboard({ casos, auditLog, municipios }: Pro
   const donutData = [
     { label: 'Concluídos', valor: totais.concluidos, cor: '#10b981' },
     { label: 'Em andamento', valor: totais.andamento, cor: '#f59e0b' },
-    { label: 'Recusados', valor: totais.recusados, cor: '#ef4444' },
+    { label: 'Na fila', valor: totais.naFila, cor: '#2d5986' },
+    { label: 'Cancelados', valor: totais.cancelados, cor: '#ef4444' },
   ]
   const donutTotal = donutData.reduce((s, d) => s + d.valor, 0) || 1
   let offset = 0
@@ -176,32 +182,74 @@ export default function RelatoriosDashboard({ casos, auditLog, municipios }: Pro
   }, [auditLog, periodoAudit, filtroAcao])
 
   // ---------------------------------------------------------------------------
-  // Exportar CSV simples
+  // Exportar PDF — abre uma janela com o relatório formatado e chama a impressão
+  // do navegador (Salvar como PDF). Sem dependências externas.
   // ---------------------------------------------------------------------------
-  function exportarCSV() {
-    if (aba === 'relatorios') {
-      const header = 'id,status,area_juridica,municipio,data\n'
-      const rows = casosFiltrados.map(c =>
-        `${c.id},${c.status},${c.area_juridica},${municipioMap[c.municipio_id]?.nome ?? ''},${c.criado_em}`
-      ).join('\n')
-      download('relatorios.csv', header + rows)
-    } else {
-      const header = 'data,usuario,acao,detalhe,municipio\n'
-      const rows = auditFiltrado.map(e =>
-        `${e.criado_em},${e.usuario_nome ?? ''},${e.acao},${e.detalhe ?? ''},${e.municipio_nome ?? ''}`
-      ).join('\n')
-      download('auditoria.csv', header + rows)
-    }
-  }
+  function exportarPDF() {
+    const esc = (s: unknown) => String(s ?? '').replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]!))
+    const dataBR = (iso: string) => { try { return new Date(iso).toLocaleDateString('pt-BR') } catch { return iso } }
+    const periodoLabel = PERIODO_OPCOES.find(p => p.dias === (aba === 'relatorios' ? periodo : periodoAudit))?.label ?? ''
+    const gerado = new Date().toLocaleString('pt-BR')
 
-  function download(nome: string, conteudo: string) {
-    const blob = new Blob([conteudo], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = nome
-    a.click()
-    URL.revokeObjectURL(url)
+    let corpo = ''
+    let titulo = ''
+    if (aba === 'relatorios') {
+      titulo = 'Relatório de Casos'
+      const cards = [
+        ['Total de casos', totais.total], ['Concluídos', totais.concluidos],
+        ['Em andamento', totais.andamento], ['Na fila', totais.naFila],
+        ['Cancelados', totais.cancelados], ['Taxa de resolução', totais.resolucao + '%'],
+      ].map(([l, v]) => `<div class="card"><div class="v">${esc(v)}</div><div class="l">${esc(l)}</div></div>`).join('')
+      const areasTbl = porArea.map(([a, n]) => `<tr><td>${esc(a)}</td><td class="r">${n}</td></tr>`).join('')
+      const casosTbl = casosFiltrados.map(c =>
+        `<tr><td>${esc(String(c.id).slice(0, 8))}</td><td>${esc(municipioMap[c.municipio_id]?.nome ?? '')}</td><td>${esc(c.area_juridica)}</td><td>${c.data_conclusao ? 'Concluído' : esc(c.status)}</td><td>${esc(c.numero_processo ?? '')}</td><td>${dataBR(c.criado_em)}</td></tr>`
+      ).join('')
+      corpo = `
+        <div class="cards">${cards}</div>
+        <h2>Casos por área jurídica</h2>
+        <table><thead><tr><th>Área</th><th class="r">Casos</th></tr></thead><tbody>${areasTbl || '<tr><td colspan="2">Sem dados</td></tr>'}</tbody></table>
+        <h2>Casos no período (${casosFiltrados.length})</h2>
+        <table><thead><tr><th>ID</th><th>Município</th><th>Área</th><th>Situação</th><th>Processo</th><th>Aberto em</th></tr></thead>
+        <tbody>${casosTbl || '<tr><td colspan="6">Sem dados</td></tr>'}</tbody></table>`
+    } else {
+      titulo = 'Log de Auditoria'
+      const rows = auditFiltrado.map(e =>
+        `<tr><td>${dataBR(e.criado_em)}</td><td>${esc(e.acao)}</td><td>${esc((e as { registro_id?: string }).registro_id ?? '')}</td><td>${esc((e as { user_id?: string }).user_id ?? e.usuario_id ?? '')}</td></tr>`
+      ).join('')
+      corpo = `<h2>Ações registradas (${auditFiltrado.length})</h2>
+        <table><thead><tr><th>Data</th><th>Ação</th><th>Registro</th><th>Usuário</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4">Sem registros</td></tr>'}</tbody></table>`
+    }
+
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${titulo} — Advocacia Dativa OAB-RJ</title>
+      <style>
+        *{box-sizing:border-box} body{font-family:Arial,Helvetica,sans-serif;color:#1e293b;margin:0;padding:32px}
+        .hd{border-bottom:3px solid #c9a227;padding-bottom:12px;margin-bottom:20px}
+        .hd .k{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#c9a227;font-weight:700}
+        .hd h1{margin:4px 0 0;font-size:22px;color:#1e3a5f}
+        .meta{font-size:12px;color:#64748b;margin-top:6px}
+        .cards{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:8px}
+        .card{border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;min-width:120px}
+        .card .v{font-size:22px;font-weight:800;color:#1e3a5f}.card .l{font-size:11px;color:#64748b}
+        h2{font-size:14px;color:#1e3a5f;margin:22px 0 8px;border-left:3px solid #c9a227;padding-left:8px}
+        table{width:100%;border-collapse:collapse;font-size:12px}
+        th{background:#1e3a5f;color:#fff;text-align:left;padding:6px 8px;font-size:11px}
+        td{padding:6px 8px;border-bottom:1px solid #eef2f7}.r{text-align:right}
+        tbody tr:nth-child(even){background:#f8fafc}
+        .ft{margin-top:24px;font-size:10px;color:#94a3b8;text-align:center;border-top:1px solid #e2e8f0;padding-top:8px}
+        @media print{body{padding:0}}
+      </style></head><body>
+      <div class="hd"><div class="k">OAB-RJ · Advocacia Dativa</div><h1>${titulo}</h1>
+      <div class="meta">Período: ${esc(periodoLabel)} · Gerado em ${esc(gerado)}</div></div>
+      ${corpo}
+      <div class="ft">Documento gerado pelo sistema Advocacia Dativa OAB-RJ · Comissão de Desenvolvimento da Advocacia Dativa</div>
+      <script>window.onload=function(){window.print()}</script>
+      </body></html>`
+
+    const w = window.open('', '_blank')
+    if (!w) { alert('Permita pop-ups para gerar o PDF.'); return }
+    w.document.write(html)
+    w.document.close()
   }
 
   // ---------------------------------------------------------------------------
@@ -223,11 +271,11 @@ export default function RelatoriosDashboard({ casos, auditLog, municipios }: Pro
             <p className="text-sm text-gray-500 mt-1">Visão consolidada do programa — todos os municípios</p>
           </div>
           <button
-            onClick={exportarCSV}
+            onClick={exportarPDF}
             className="flex items-center gap-2 text-sm border border-gray-200 rounded-lg px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
           >
             <Download className="w-4 h-4" />
-            Exportar CSV
+            Exportar PDF
           </button>
         </div>
 
@@ -281,14 +329,14 @@ export default function RelatoriosDashboard({ casos, auditLog, municipios }: Pro
                 icone={<Clock className="w-5 h-5 text-amber-500" />}
                 label="Em andamento"
                 valor={totais.andamento}
-                sub="aguardando"
+                sub={`${totais.naFila} na fila`}
                 borda="border-amber-400"
               />
               <CardResumo
                 icone={<XCircle className="w-5 h-5 text-red-500" />}
-                label="Recusados"
-                valor={totais.recusados}
-                sub={totais.total > 0 ? `${Math.round((totais.recusados / totais.total) * 100)}% do total` : '—'}
+                label="Cancelados"
+                valor={totais.cancelados}
+                sub={totais.total > 0 ? `${Math.round((totais.cancelados / totais.total) * 100)}% do total` : '—'}
                 borda="border-red-400"
               />
             </div>

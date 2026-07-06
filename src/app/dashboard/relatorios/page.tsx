@@ -6,7 +6,7 @@ export default async function RelatoriosPage() {
 
   const { data: casos } = await supabase
     .from('casos')
-    .select('id, status, area_juridica, municipio_id, criado_em, atualizado_em')
+    .select('id, status, area_juridica, municipio_id, numero_processo, data_conclusao, criado_em, atualizado_em')
     .order('criado_em', { ascending: false })
 
   const { data: auditLog } = await supabase
