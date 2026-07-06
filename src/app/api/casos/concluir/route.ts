@@ -12,6 +12,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { criarNotificacao } from '@/lib/notificacoes'
+import { enviarEmail } from '@/lib/email/resend'
+import { assinarCaso } from '@/lib/tokens'
+import { casoConcluidoClienteEmail } from '@/lib/email/templates/caso-concluido-cliente'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -66,8 +69,24 @@ export async function POST(request: NextRequest) {
   await criarNotificacao(admin, {
     destinatarioId: caso.cliente_id, tipo: 'caso',
     titulo: 'Caso concluído — confirme',
-    conteudo: `O advogado concluiu o seu caso #${numeroCaso} (processo ${String(numero_processo).trim()}). Confirme a conclusão do atendimento.`,
+    conteudo: `O advogado concluiu o seu caso #${numeroCaso} (processo ${String(numero_processo).trim()}). Confirme a conclusão do atendimento pelo link enviado ao seu email.`,
   })
+
+  // Email ao cliente com link de confirmação (best-effort)
+  try {
+    const { data: cliProfile } = await admin.from('profiles').select('nome, email').eq('id', caso.cliente_id).single()
+    if (cliProfile?.email) {
+      const token = assinarCaso(caso.id)
+      const linkConfirmar = `${process.env.NEXT_PUBLIC_APP_URL}/api/casos/confirmar?caso=${caso.id}&t=${token}`
+      const { subject, html } = casoConcluidoClienteEmail({
+        nomeCliente: cliProfile.nome, numeroCaso,
+        numeroProcesso: String(numero_processo).trim(), linkConfirmar,
+      })
+      await enviarEmail({ para: cliProfile.email, assunto: subject, html })
+    }
+  } catch (e) {
+    console.error('[casos/concluir] falha ao enviar email:', e)
+  }
 
   return NextResponse.json({ sucesso: true })
 }

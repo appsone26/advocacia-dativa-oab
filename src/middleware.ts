@@ -12,7 +12,7 @@ const PUBLIC_ROUTES = [
 ]
 const isPublicCadastro = (path: string) => path.startsWith('/cadastro/')
 // Rotas de API públicas (chamadas sem sessão: auto-cadastro e recuperação de senha)
-const PUBLIC_API = ['/api/cadastro', '/api/recuperar-senha']
+const PUBLIC_API = ['/api/cadastro', '/api/recuperar-senha', '/api/casos/confirmar']
 const isPublicApi = (path: string) => PUBLIC_API.some(r => path.startsWith(r))
 // Rotas compartilhadas — acessíveis por qualquer usuário autenticado
 const SHARED_ROUTES = [
