@@ -1,8 +1,8 @@
-// src/app/api/municipios/status/route.ts
+// src/app/api/municipios/atualizar/route.ts
 // POST → owner/comissão altera o status de atendimento de um município.
 //   1. Valida sessão e nível (owner ou comissao)
-//   2. Atualiza municipios.status_atendimento
-//   3. Grava no audit_log
+//   2. Atualiza municipios.status_atendimento  (parte crítica)
+//   3. Grava no audit_log  (best-effort: se falhar, NÃO derruba o salvamento)
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (!perfil || (perfil.nivel !== 'owner' && perfil.nivel !== 'comissao')) {
-      return NextResponse.json({ error: 'Sem permissão' }, { status: 403 })
+      return NextResponse.json({ error: 'Sem permissão para alterar status' }, { status: 403 })
     }
 
     const { id, status_atendimento } = (await req.json()) as {
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Município não encontrado' }, { status: 404 })
     }
 
+    // ── Parte crítica: o salvamento em si ──
     const { error: errUpdate } = await admin
       .from('municipios')
       .update({
@@ -57,21 +58,31 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', id)
 
-    if (errUpdate) throw errUpdate
+    if (errUpdate) {
+      return NextResponse.json(
+        { error: `Falha ao gravar no banco: ${errUpdate.message}` },
+        { status: 500 }
+      )
+    }
 
-    // Grava tudo no audit_log
-    await admin.from('audit_log').insert({
-      usuario_id:     perfil.id,
-      usuario_nome:   perfil.nome,
-      acao:           'municipio_status_atendimento',
-      detalhe:        `Status de atendimento de ${municipio.nome}: ${municipio.status_atendimento ?? 'nao_visitada'} → ${status_atendimento}`,
-      municipio_id:   municipio.id,
-      municipio_nome: municipio.nome,
-    })
+    // ── Best-effort: audit_log não pode derrubar o salvamento ──
+    try {
+      await admin.from('audit_log').insert({
+        usuario_id:     perfil.id,
+        usuario_nome:   perfil.nome,
+        acao:           'municipio_status_atendimento',
+        detalhe:        `Status de atendimento de ${municipio.nome}: ${municipio.status_atendimento ?? 'nao_visitada'} → ${status_atendimento}`,
+        municipio_id:   municipio.id,
+        municipio_nome: municipio.nome,
+      })
+    } catch (auditErr) {
+      console.warn('[municipios/status] audit_log falhou (ignorado):', auditErr)
+    }
 
     return NextResponse.json({ ok: true, status_atendimento })
   } catch (err) {
+    const msg = err instanceof Error ? err.message : 'desconhecido'
     console.error('[POST /api/municipios/status]', err)
-    return NextResponse.json({ error: 'Erro interno ao atualizar status' }, { status: 500 })
+    return NextResponse.json({ error: `Erro interno: ${msg}` }, { status: 500 })
   }
 }
