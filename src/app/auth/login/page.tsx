@@ -1,9 +1,11 @@
 'use client'
+// src/app/auth/login/page.tsx
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { NivelUsuario } from '@/types'
+import { MODULOS } from '@/config/modulos'
 
 const DASHBOARD_POR_NIVEL: Record<NivelUsuario, string> = {
   cliente:  '/auth/login',
@@ -11,6 +13,12 @@ const DASHBOARD_POR_NIVEL: Record<NivelUsuario, string> = {
   gestor:   '/dashboard/gestor',
   comissao: '/dashboard/comissao',
   owner:    '/dashboard/owner',
+}
+
+// Níveis cujo painel pode estar adormecido (interruptores em modulos.ts).
+const MODULO_DO_NIVEL: Partial<Record<NivelUsuario, 'gestor' | 'advogado'>> = {
+  gestor:   'gestor',
+  advogado: 'advogado',
 }
 
 export default function LoginPage() {
@@ -38,12 +46,23 @@ export default function LoginPage() {
     const nivel = data.user?.user_metadata?.nivel as NivelUsuario
     const primeiroacesso = data.user?.user_metadata?.primeiro_acesso as boolean
 
+    // Nível adormecido (ou sem painel próprio) → não entra: avisa e desloga.
+    const mod = MODULO_DO_NIVEL[nivel]
+    const nivelAdormecido = mod ? !MODULOS[mod] : false
+    const destino = DASHBOARD_POR_NIVEL[nivel] ?? '/auth/login'
+
+    if (nivelAdormecido || destino === '/auth/login') {
+      await supabase.auth.signOut()
+      setErro('Este acesso está indisponível no momento.')
+      setCarregando(false)
+      return
+    }
+
     if (primeiroacesso) {
       router.push('/auth/primeiro-acesso')
       return
     }
 
-    const destino = DASHBOARD_POR_NIVEL[nivel] ?? '/auth/login'
     router.push(destino)
   }
 
