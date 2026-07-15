@@ -181,12 +181,13 @@ export default function OwnerDashboard({ municipios }: Props) {
     setSalvando(true)
     setMensagem(null)
     try {
-      const res = await fetch('/api/municipios/status', {
+      const res = await fetch('/api/municipios/atualizar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: selecionado.id, status_atendimento: novoStatus }),
       })
-      if (!res.ok) throw new Error('falha')
+      const data = await res.json().catch(() => ({} as { error?: string }))
+      if (!res.ok) throw new Error(data?.error || `Falha (HTTP ${res.status})`)
 
       // Atualiza a cópia local → placar, lista e ranking mudam na hora
       setLista(prev => prev.map(m =>
@@ -194,8 +195,9 @@ export default function OwnerDashboard({ municipios }: Props) {
       ))
       setSelecionado(prev => (prev ? { ...prev, status_atendimento: novoStatus } : prev))
       setMensagem({ tipo: 'ok', texto: 'Status atualizado com sucesso.' })
-    } catch {
-      setMensagem({ tipo: 'erro', texto: 'Erro ao salvar. Tente novamente.' })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Erro ao salvar. Tente novamente.'
+      setMensagem({ tipo: 'erro', texto: msg })
     } finally {
       setSalvando(false)
     }
