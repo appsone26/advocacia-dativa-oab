@@ -1,3 +1,4 @@
+// src/app/dashboard/owner/page.tsx
 import { createClient } from '@/lib/supabase/server'
 import OwnerDashboard from '@/components/dashboard/OwnerDashboard'
 
@@ -11,26 +12,12 @@ export default async function OwnerPage() {
       nome,
       regiao,
       logo_url,
-      gestor_id,
-      prazo_resposta_dias,
-      max_recusas,
-      status_parceria,
-      criado_em,
+      status_atendimento,
+      populacao,
+      distancia_capital_km,
       atualizado_em
     `)
     .order('nome')
 
-  const { data: gestores } = await supabase
-    .from('profiles')
-    .select('id, nome, email')
-    .eq('nivel', 'gestor')
-    .eq('ativo', true)
-    .order('nome')
-
-  return (
-    <OwnerDashboard
-      municipios={municipios ?? []}
-      gestores={gestores ?? []}
-    />
-  )
+  return <OwnerDashboard municipios={municipios ?? []} />
 }
