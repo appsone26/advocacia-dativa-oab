@@ -7,7 +7,7 @@ import { MODULOS } from '@/config/modulos'
 import {
   LayoutDashboard, Users, FileText, BarChart2, Building2,
   ScrollText, Settings, X, Scale, MapPin, UserCheck,
-  MessageSquare, LogOut, Shield
+  MessageSquare, LogOut, Shield, Calendar
 } from 'lucide-react'
 
 type MenuItem = {
@@ -22,8 +22,9 @@ function getMenuItems(nivel: string): MenuItem[] {
   switch (nivel) {
     case 'owner':
       return [
-        { href: '/dashboard/owner',      label: 'Visão Geral',        icon: icon(LayoutDashboard) },
-        { href: '/dashboard/usuarios',   label: 'Usuários',           icon: icon(Users) },
+        { href: '/dashboard/owner',        label: 'Visão Geral',        icon: icon(LayoutDashboard) },
+        { href: '/dashboard/owner/agenda', label: 'Agenda',             icon: icon(Calendar) },
+        { href: '/dashboard/usuarios',     label: 'Usuários',           icon: icon(Users) },
         { href: '/dashboard/relatorios', label: 'Relatórios',         icon: icon(BarChart2) },
         { href: '/dashboard/relatorios', label: 'Auditoria',          icon: icon(ScrollText) },
       ]
