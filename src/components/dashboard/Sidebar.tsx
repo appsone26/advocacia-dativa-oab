@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { MODULOS } from '@/config/modulos'
 import {
   LayoutDashboard, Users, FileText, BarChart2, Building2,
   ScrollText, Settings, X, Scale, MapPin, UserCheck,
@@ -34,6 +35,8 @@ function getMenuItems(nivel: string): MenuItem[] {
         { href: '/dashboard/relatorios', label: 'Relatórios',   icon: icon(BarChart2) },
       ]
     case 'gestor':
+      // Módulo adormecido → sem menu (defensivo; o middleware já bloqueia a rota).
+      if (!MODULOS.gestor) return []
       return [
         { href: '/dashboard/gestor',     label: 'Meu Município', icon: icon(LayoutDashboard) },
         { href: '/dashboard/gestor',     label: 'Advogados',     icon: icon(UserCheck) },
@@ -42,6 +45,8 @@ function getMenuItems(nivel: string): MenuItem[] {
         { href: '/dashboard/relatorios', label: 'Relatórios',    icon: icon(BarChart2) },
       ]
     case 'advogado':
+      // Módulo adormecido → sem menu (defensivo; o middleware já bloqueia a rota).
+      if (!MODULOS.advogado) return []
       return [
         { href: '/dashboard/advogado',   label: 'Meu Painel', icon: icon(LayoutDashboard) },
         { href: '/dashboard/advogado',   label: 'Meus Casos', icon: icon(Scale) },
