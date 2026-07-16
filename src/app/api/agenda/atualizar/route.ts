@@ -64,14 +64,16 @@ export async function POST(request: NextRequest) {
 
   // ── Remarcar ──────────────────────────────────────────────────────────────
   if (acao === 'remarcar') {
-    const { data_inicio, data_fim } = body as { data_inicio?: string; data_fim?: string }
+    // Só a data/hora de início é remarcada; data_fim NÃO é tocada (evita o bug
+    // de fim anterior ao início e mantém intacto o que já estava no banco).
+    const { data_inicio } = body as { data_inicio?: string }
     if (!data_inicio) {
       return NextResponse.json({ error: 'Nova data de início é obrigatória' }, { status: 400 })
     }
 
     const { error: errUpd } = await admin
       .from('agenda')
-      .update({ data_inicio, data_fim: data_fim || null })
+      .update({ data_inicio })
       .eq('id', id)
 
     if (errUpd) return NextResponse.json({ error: errUpd.message }, { status: 500 })
@@ -82,8 +84,8 @@ export async function POST(request: NextRequest) {
         acao: 'agenda_remarcar',
         tabela: 'agenda',
         registro_id: String(id),
-        valor_antes: { data_inicio: evento.data_inicio, data_fim: evento.data_fim },
-        valor_depois: { data_inicio, data_fim: data_fim || null },
+        valor_antes: { data_inicio: evento.data_inicio },
+        valor_depois: { data_inicio },
         ip_address: getIp(request),
       })
       if (auditErr) console.warn('[agenda/atualizar:remarcar] audit_log falhou (ignorado):', auditErr.message)

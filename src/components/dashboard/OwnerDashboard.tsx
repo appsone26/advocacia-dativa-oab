@@ -57,11 +57,12 @@ type StatusChave = 'nao_visitada' | 'marcada' | 'negociacao' | 'fechado' | 'nao_
 
 const ORDEM_STATUS: StatusChave[] = ['nao_visitada', 'marcada', 'negociacao', 'fechado', 'nao_participa']
 
-// Estágios que aparecem como chips de filtro DA FILA. `fechado` e `nao_participa`
-// não entram na fila (D1), então filtrar por eles daria lista vazia — ficam de fora.
-const STATUS_FILTRO_FILA: StatusChave[] = ORDEM_STATUS.filter(
-  s => s !== 'fechado' && s !== 'nao_participa'
-)
+// Agrupamento da lista: ativas primeiro, depois fechadas, depois recusadas.
+function grupoDe(status: StatusChave): 0 | 1 | 2 {
+  if (status === 'fechado') return 1
+  if (status === 'nao_participa') return 2
+  return 0
+}
 
 const STATUS: Record<StatusChave, {
   label: string
@@ -153,11 +154,8 @@ export default function OwnerDashboard({ municipios, eventos }: Props) {
   const comContato = municipios.filter(m => (m.status_atendimento ?? 'nao_visitada') !== 'nao_visitada').length
   const faltam = municipios.length - comContato
 
-  // ── Fila: municípios com evento, exceto fechado/nao_participa, ordenados
-  //    pela data de referência (próximo futuro; senão o último passado) ──
-  const fila = useMemo<ItemFila[]>(() => {
-    const agora = new Date()
-
+  // ── Eventos (não cancelados, com município) agrupados por município ──
+  const eventosPorMun = useMemo(() => {
     const porMun = new Map<string, EventoAgenda[]>()
     for (const ev of eventos) {
       if (!ev.municipio_id) continue
@@ -166,15 +164,29 @@ export default function OwnerDashboard({ municipios, eventos }: Props) {
       arr.push(ev)
       porMun.set(ev.municipio_id, arr)
     }
+    return porMun
+  }, [eventos])
+
+  // ── Lista exibida ──
+  // Sem busca: só cidades COM evento. Com busca: procura por nome entre TODOS os
+  // 92 (inclui nao_visitada sem compromisso). Ordenação: grupo primário
+  // (0 ativas → 1 fechado → 2 nao_participa) e, dentro do grupo, refData ASC
+  // (vencidos/passados no topo; quem não tem evento afunda).
+  const listaExibida = useMemo<ItemFila[]>(() => {
+    const agora = new Date()
+    const termo = busca.trim().toLowerCase()
+
+    const base = termo
+      ? municipios
+      : municipios.filter(m => (eventosPorMun.get(m.id)?.length ?? 0) > 0)
 
     const itens: ItemFila[] = []
-    for (const [munId, evs] of porMun) {
-      const municipio = municipios.find(m => m.id === munId)
-      if (!municipio) continue
-      // D1: fora da fila quem já está fechado ou não participa.
-      const st = chaveStatus(municipio)
-      if (st === 'fechado' || st === 'nao_participa') continue
+    for (const m of base) {
+      if (termo && !m.nome.toLowerCase().includes(termo)) continue
+      if (filtroStatus !== 'todos' && chaveStatus(m) !== filtroStatus) continue
+      if (filtroRegiao !== 'Todas as regiões' && m.regiao !== filtroRegiao) continue
 
+      const evs = eventosPorMun.get(m.id) ?? []
       const futuros = evs
         .filter(e => new Date(e.data_inicio) >= agora)
         .sort((a, b) => +new Date(a.data_inicio) - +new Date(b.data_inicio))
@@ -184,31 +196,22 @@ export default function OwnerDashboard({ municipios, eventos }: Props) {
 
       const proximo = futuros[0] ?? null
       const compromisso = proximo ?? passados[0] ?? null
-      const vencido = !proximo
+      const vencido = !!compromisso && !proximo
       const refData = compromisso ? compromisso.data_inicio : null
 
-      itens.push({ municipio, compromisso, vencido, refData })
+      itens.push({ municipio: m, compromisso, vencido, refData })
     }
 
-    // D2: refData ascendente — vencidos (data passada) sobem ao topo.
     itens.sort((a, b) => {
+      const ga = grupoDe(chaveStatus(a.municipio))
+      const gb = grupoDe(chaveStatus(b.municipio))
+      if (ga !== gb) return ga - gb
       const ta = a.refData ? +new Date(a.refData) : Infinity
       const tb = b.refData ? +new Date(b.refData) : Infinity
       return ta - tb
     })
     return itens
-  }, [eventos, municipios])
-
-  // ── Filtros operando sobre a fila ──
-  const filaFiltrada = useMemo(() => {
-    return fila.filter(item => {
-      const m = item.municipio
-      const matchBusca = m.nome.toLowerCase().includes(busca.toLowerCase())
-      const matchStatus = filtroStatus === 'todos' || chaveStatus(m) === filtroStatus
-      const matchRegiao = filtroRegiao === 'Todas as regiões' || m.regiao === filtroRegiao
-      return matchBusca && matchStatus && matchRegiao
-    })
-  }, [fila, busca, filtroStatus, filtroRegiao])
+  }, [municipios, eventosPorMun, busca, filtroStatus, filtroRegiao])
 
   function fecharModal() {
     setSelecionado(null)
@@ -272,54 +275,36 @@ export default function OwnerDashboard({ municipios, eventos }: Props) {
               </button>
             )}
           </div>
-          <div className="flex gap-2 flex-wrap items-center">
-            <button
-              onClick={() => setFiltroStatus('todos')}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                filtroStatus === 'todos'
-                  ? 'bg-[#1e3a5f] text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+          <div className="flex items-center gap-2">
+            <Filter className="w-3.5 h-3.5 text-gray-400" />
+            <select
+              value={filtroRegiao}
+              onChange={e => setFiltroRegiao(e.target.value)}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none bg-white text-gray-600"
             >
-              Todas
-            </button>
-            {STATUS_FILTRO_FILA.map(s => (
-              <button
-                key={s}
-                onClick={() => setFiltroStatus(filtroStatus === s ? 'todos' : s)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  filtroStatus === s
-                    ? 'bg-[#1e3a5f] text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {STATUS[s].curto}
-              </button>
-            ))}
-            <div className="flex items-center gap-1 ml-auto">
-              <Filter className="w-3.5 h-3.5 text-gray-400" />
-              <select
-                value={filtroRegiao}
-                onChange={e => setFiltroRegiao(e.target.value)}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none bg-white text-gray-600"
-              >
-                {REGIOES.map(r => <option key={r}>{r}</option>)}
-              </select>
-            </div>
+              {REGIOES.map(r => <option key={r}>{r}</option>)}
+            </select>
+            <span className="text-xs text-gray-400 ml-auto">
+              {filtroStatus !== 'todos' && (
+                <>filtrando por <span className="font-medium text-gray-500">{STATUS[filtroStatus].curto}</span> · </>
+              )}
+              clique num card para filtrar por status
+            </span>
           </div>
-          <p className="text-xs text-gray-400">{filaFiltrada.length} cidade(s) na fila</p>
+          <p className="text-xs text-gray-400">{listaExibida.length} cidade(s)</p>
         </div>
 
         {/* ── Fila ── */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="divide-y divide-gray-50">
-            {filaFiltrada.length === 0 ? (
+            {listaExibida.length === 0 ? (
               <div className="py-12 text-center text-gray-400 text-sm">
-                Nenhuma cidade na fila com os filtros atuais. A fila lista cidades com
-                compromisso marcado que ainda não foram fechadas.
+                {busca.trim()
+                  ? 'Nenhum município encontrado para a busca.'
+                  : 'Nenhuma cidade com compromisso na agenda. Use a busca para localizar qualquer um dos 92 municípios.'}
               </div>
             ) : (
-              filaFiltrada.map(item => (
+              listaExibida.map(item => (
                 <LinhaFila key={item.municipio.id} item={item} onClick={() => setSelecionado(item)} />
               ))
             )}
@@ -428,9 +413,6 @@ function ModalCidade({
   const [dataInicio, setDataInicio] = useState(
     compromisso ? toLocalInput(compromisso.data_inicio) : ''
   )
-  const [dataFim, setDataFim] = useState(
-    compromisso?.data_fim ? toLocalInput(compromisso.data_fim) : ''
-  )
   const [motivoCancel, setMotivoCancel] = useState('')
   const [motivoNaoQuer, setMotivoNaoQuer] = useState('')
   const [salvando, setSalvando] = useState(false)
@@ -474,8 +456,9 @@ function ModalCidade({
   })
 
   // Ações de agenda (reusam /api/agenda/atualizar).
+  // Remarcar só muda a data/hora de início; data_fim fica intacta no banco.
   const remarcar = () => compromisso && chamar('/api/agenda/atualizar', {
-    acao: 'remarcar', id: compromisso.id, data_inicio: dataInicio, data_fim: dataFim || null,
+    acao: 'remarcar', id: compromisso.id, data_inicio: dataInicio,
   })
   const cancelar = () => compromisso && chamar('/api/agenda/atualizar', {
     acao: 'cancelar', id: compromisso.id, motivo: motivoCancel.trim(),
@@ -588,25 +571,14 @@ function ModalCidade({
           {/* ── Remarcar ── */}
           {modo === 'remarcar' && (
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Novo início *</label>
-                  <input
-                    type="datetime-local"
-                    value={dataInicio}
-                    onChange={e => setDataInicio(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Fim</label>
-                  <input
-                    type="datetime-local"
-                    value={dataFim}
-                    onChange={e => setDataFim(e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Nova data e hora *</label>
+                <input
+                  type="datetime-local"
+                  value={dataInicio}
+                  onChange={e => setDataInicio(e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]"
+                />
               </div>
               <AcoesConfirmar
                 onVoltar={() => setModo('menu')}
