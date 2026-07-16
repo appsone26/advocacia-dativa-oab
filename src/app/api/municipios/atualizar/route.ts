@@ -31,9 +31,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sem permissão para alterar status' }, { status: 403 })
     }
 
-    const { id, status_atendimento } = (await req.json()) as {
+    const { id, status_atendimento, motivo, acao } = (await req.json()) as {
       id?: string
       status_atendimento?: string
+      motivo?: string
+      acao?: string
     }
 
     if (!id || !status_atendimento) {
@@ -41,6 +43,15 @@ export async function POST(req: NextRequest) {
     }
     if (!isStatusFunil(status_atendimento)) {
       return NextResponse.json({ error: 'status_atendimento inválido' }, { status: 400 })
+    }
+    // Trava de invariante (defesa em profundidade): o funil nunca volta pro
+    // cinza. A cidade só sai de nao_visitada pela agenda (helper aoCriarEvento);
+    // esta rota nunca pode rebaixar pra nao_visitada, mesmo chamada direto.
+    if (status_atendimento === 'nao_visitada') {
+      return NextResponse.json(
+        { error: 'Não é permitido voltar uma cidade para "não visitada" por esta rota.' },
+        { status: 400 }
+      )
     }
 
     const admin = createAdminClient()
@@ -77,14 +88,31 @@ export async function POST(req: NextRequest) {
     // (nome da cidade, estágio de→para) vai no jsonb, não em colunas.
     // Correção da dívida: o insert antigo usava colunas inexistentes
     // (usuario_id/usuario_nome/detalhe/municipio_*) e falhava calado.
+    // Verbo do audit: o 3.5 (relatório mensal) separa por ele. O client sinaliza
+    // a intenção (avançar / fechar / não-participa); se não vier, inferimos pelo
+    // status alvo. 'funil_avancar' fica só para o avanço de estágio.
+    const VERBOS_FUNIL = ['funil_avancar', 'funil_fechar', 'funil_nao_participa']
+    const acaoAudit =
+      acao && VERBOS_FUNIL.includes(acao)
+        ? acao
+        : status_atendimento === 'nao_participa'
+          ? 'funil_nao_participa'
+          : status_atendimento === 'fechado'
+            ? 'funil_fechar'
+            : 'funil_avancar'
+
     try {
       const { error: auditErr } = await admin.from('audit_log').insert({
         user_id:      perfil.id,
-        acao:         'funil_avancar',
+        acao:         acaoAudit,
         tabela:       'municipios',
         registro_id:  String(municipio.id),
         valor_antes:  { status_atendimento: municipio.status_atendimento ?? 'nao_visitada' },
-        valor_depois: { status_atendimento, municipio_nome: municipio.nome },
+        valor_depois: {
+          status_atendimento,
+          municipio_nome: municipio.nome,
+          ...(motivo && String(motivo).trim() ? { motivo: String(motivo).trim() } : {}),
+        },
         ip_address:   getIp(req),
       })
       if (auditErr) console.warn('[municipios/status] audit_log falhou (ignorado):', auditErr.message)
