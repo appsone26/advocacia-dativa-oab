@@ -1,12 +1,15 @@
 'use client'
 // src/components/dashboard/OwnerDashboard.tsx
-// Visão Geral (fase Defensoria) — placar por status de atendimento das 92 cidades.
+// Fila da Direção (fase Defensoria) — a agenda comanda o status da cidade.
+// A lista deixa de ser alfabética e vira uma FILA por data do próximo
+// compromisso (vencidos, por terem data passada, sobem ao topo).
 
 import { useState, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Users, AlertTriangle, CheckCircle2, Search, ChevronRight, X,
-  Clock, Filter, RefreshCw, TrendingDown, Globe, MapPin,
-  CalendarDays, ShieldCheck, Route,
+  Clock, Filter, RefreshCw, Globe, MapPin,
+  CalendarDays, ShieldCheck, Route, Ban, ArrowRight,
 } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -23,59 +26,42 @@ interface Municipio {
   atualizado_em: string
 }
 
+interface EventoAgenda {
+  id: string
+  titulo: string
+  tipo: string
+  municipio_id: string | null
+  data_inicio: string
+  data_fim: string | null
+  responsavel: string | null
+  status_reuniao: string | null
+  descricao: string | null
+}
+
 interface Props {
   municipios: Municipio[]
+  eventos: EventoAgenda[]
+}
+
+interface ItemFila {
+  municipio: Municipio
+  compromisso: EventoAgenda | null
+  vencido: boolean
+  refData: string | null
 }
 
 // ---------------------------------------------------------------------------
-// População de apoio (IBGE 2022) — usada só como fallback visual enquanto a
-// coluna `populacao` do banco não estiver preenchida. Não substitui o banco.
+// Status de atendimento — funil de 5 estágios (alinhado ao CHECK real)
 // ---------------------------------------------------------------------------
-const POP_FALLBACK: Record<string, number> = {
-  'Angra dos Reis': 213027, 'Aperibé': 11025, 'Araruama': 135640, 'Areal': 12024,
-  'Armação dos Búzios': 34509, 'Arraial do Cabo': 32017, 'Barra do Piraí': 100488,
-  'Barra Mansa': 182017, 'Belford Roxo': 523406, 'Bom Jardim': 24987,
-  'Bom Jesus do Itabapoana': 35124, 'Cabo Frio': 230528, 'Cachoeiras de Macacu': 59128,
-  'Cambuci': 14891, 'Campos dos Goytacazes': 511110, 'Cantagalo': 20112,
-  'Cardoso Moreira': 12440, 'Carmo': 17645, 'Casimiro de Abreu': 47011,
-  'Comendador Levy Gasparian': 8432, 'Conceição de Macabu': 22013, 'Cordeiro': 22217,
-  'Duas Barras': 11240, 'Duque de Caxias': 924624, 'Engenheiro Paulo de Frontin': 14012,
-  'Guapimirim': 70219, 'Iguaba Grande': 25403, 'Itaboraí': 246141, 'Itaguaí': 130456,
-  'Italva': 14302, 'Itaocara': 23218, 'Itaperuna': 106019, 'Itatiaia': 36308,
-  'Japeri': 105776, 'Laje do Muriaé': 7941, 'Macaé': 262577, 'Macuco': 5474,
-  'Magé': 240547, 'Mangaratiba': 47300, 'Maricá': 178277, 'Mendes': 17981,
-  'Mesquita': 174025, 'Miguel Pereira': 25009, 'Miracema': 27011, 'Natividade': 15214,
-  'Nilópolis': 157483, 'Niterói': 515317, 'Nova Friburgo': 185752, 'Nova Iguaçu': 820245,
-  'Paracambi': 51447, 'Paraíba do Sul': 42014, 'Paraty': 43027, 'Paty do Alferes': 28219,
-  'Petrópolis': 295917, 'Pinheiral': 24118, 'Piraí': 30107, 'Porciúncula': 17511,
-  'Porto Real': 21447, 'Quatis': 13519, 'Queimados': 145107, 'Quissamã': 23016,
-  'Resende': 131408, 'Rio Bonito': 57014, 'Rio Claro': 17841, 'Rio das Flores': 9016,
-  'Rio das Ostras': 147077, 'Rio de Janeiro': 6748000, 'Santa Maria Madalena': 10119,
-  'Santo Antônio de Pádua': 40514, 'São Fidélis': 36811, 'São Francisco de Itabapoana': 41014,
-  'São Gonçalo': 1084839, 'São João da Barra': 37219, 'São João de Meriti': 471038,
-  'São José de Ubá': 7514, 'São José do Vale do Rio Preto': 21812, 'São Pedro da Aldeia': 104219,
-  'São Sebastião do Alto': 9011, 'Sapucaia': 17219, 'Saquarema': 101718, 'Seropédica': 89007,
-  'Silva Jardim': 22019, 'Sumidouro': 15319, 'Tanguá': 33519, 'Teresópolis': 178210,
-  'Trajano de Moraes': 10819, 'Três Rios': 77912, 'Valença': 74512, 'Varre-Sai': 9912,
-  'Vassouras': 35714, 'Volta Redonda': 272029,
-}
+type StatusChave = 'nao_visitada' | 'marcada' | 'negociacao' | 'fechado' | 'nao_participa'
 
-function popDe(m: Municipio): number | null {
-  return m.populacao ?? POP_FALLBACK[m.nome] ?? null
-}
+const ORDEM_STATUS: StatusChave[] = ['nao_visitada', 'marcada', 'negociacao', 'fechado', 'nao_participa']
 
-function formatPopulacao(n: number): string {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
-  if (n >= 1000) return `${(n / 1000).toFixed(0)}k`
-  return n.toString()
-}
-
-// ---------------------------------------------------------------------------
-// Status de atendimento — a espinha dorsal da fase Defensoria
-// ---------------------------------------------------------------------------
-type StatusChave = 'nao_visitada' | 'marcada' | 'realizada' | 'negociacao' | 'fechado'
-
-const ORDEM_STATUS: StatusChave[] = ['nao_visitada', 'marcada', 'realizada', 'negociacao', 'fechado']
+// Estágios que aparecem como chips de filtro DA FILA. `fechado` e `nao_participa`
+// não entram na fila (D1), então filtrar por eles daria lista vazia — ficam de fora.
+const STATUS_FILTRO_FILA: StatusChave[] = ORDEM_STATUS.filter(
+  s => s !== 'fechado' && s !== 'nao_participa'
+)
 
 const STATUS: Record<StatusChave, {
   label: string
@@ -95,11 +81,6 @@ const STATUS: Record<StatusChave, {
     color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-500', borda: 'border-blue-400',
     icone: <CalendarDays className="w-5 h-5 text-blue-600" />,
   },
-  realizada: {
-    label: 'Reunião realizada', curto: 'Realizadas',
-    color: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500', borda: 'border-indigo-400',
-    icone: <CheckCircle2 className="w-5 h-5 text-indigo-600" />,
-  },
   negociacao: {
     label: 'Em negociação', curto: 'Negociação',
     color: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500', borda: 'border-amber-400',
@@ -110,11 +91,35 @@ const STATUS: Record<StatusChave, {
     color: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500', borda: 'border-emerald-500',
     icone: <ShieldCheck className="w-5 h-5 text-emerald-600" />,
   },
+  nao_participa: {
+    label: 'Não participa', curto: 'Não participam',
+    color: 'bg-red-100 text-red-700', dot: 'bg-red-500', borda: 'border-red-400',
+    icone: <Ban className="w-5 h-5 text-red-600" />,
+  },
+}
+
+// Avanço do funil (só avança, nunca volta pra nao_visitada).
+const PROXIMO_ESTAGIO: Record<StatusChave, StatusChave | null> = {
+  nao_visitada: 'marcada',
+  marcada: 'negociacao',
+  negociacao: 'fechado',
+  fechado: null,
+  nao_participa: null,
 }
 
 function chaveStatus(m: Municipio): StatusChave {
   const s = (m.status_atendimento ?? 'nao_visitada') as StatusChave
   return ORDEM_STATUS.includes(s) ? s : 'nao_visitada'
+}
+
+function formatHab(n: number | null): string {
+  return n == null ? '—' : n.toLocaleString('pt-BR')
+}
+
+function fmtDataHora(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+  })
 }
 
 const REGIOES = [
@@ -128,91 +133,111 @@ const TOTAL = 92
 // ---------------------------------------------------------------------------
 // Componente principal
 // ---------------------------------------------------------------------------
-export default function OwnerDashboard({ municipios }: Props) {
-  // Cópia local para o placar/lista atualizarem na hora ao salvar (sem reload)
-  const [lista, setLista] = useState<Municipio[]>(municipios)
+export default function OwnerDashboard({ municipios, eventos }: Props) {
+  const router = useRouter()
 
   const [busca, setBusca] = useState('')
   const [filtroStatus, setFiltroStatus] = useState<'todos' | StatusChave>('todos')
   const [filtroRegiao, setFiltroRegiao] = useState('Todas as regiões')
-  const [selecionado, setSelecionado] = useState<Municipio | null>(null)
-  const [novoStatus, setNovoStatus] = useState<StatusChave>('nao_visitada')
-  const [salvando, setSalvando] = useState(false)
-  const [mensagem, setMensagem] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null)
+  const [selecionado, setSelecionado] = useState<ItemFila | null>(null)
 
-  // ── Contadores por status ──
+  // ── Contadores por status (sobre os 92) ──
   const totais = useMemo(() => {
     const acc: Record<StatusChave, number> = {
-      nao_visitada: 0, marcada: 0, realizada: 0, negociacao: 0, fechado: 0,
+      nao_visitada: 0, marcada: 0, negociacao: 0, fechado: 0, nao_participa: 0,
     }
-    for (const m of lista) acc[chaveStatus(m)]++
+    for (const m of municipios) acc[chaveStatus(m)]++
     return acc
-  }, [lista])
+  }, [municipios])
 
-  const iniciadas = TOTAL - totais.nao_visitada
-  const progresso = Math.round((iniciadas / TOTAL) * 100)
+  const comContato = municipios.filter(m => (m.status_atendimento ?? 'nao_visitada') !== 'nao_visitada').length
+  const faltam = municipios.length - comContato
 
-  // ── Lista filtrada ──
-  const filtrados = useMemo(() => {
-    return lista.filter(m => {
+  // ── Fila: municípios com evento, exceto fechado/nao_participa, ordenados
+  //    pela data de referência (próximo futuro; senão o último passado) ──
+  const fila = useMemo<ItemFila[]>(() => {
+    const agora = new Date()
+
+    const porMun = new Map<string, EventoAgenda[]>()
+    for (const ev of eventos) {
+      if (!ev.municipio_id) continue
+      if (ev.status_reuniao === 'cancelada') continue // defensivo (query já filtra)
+      const arr = porMun.get(ev.municipio_id) ?? []
+      arr.push(ev)
+      porMun.set(ev.municipio_id, arr)
+    }
+
+    const itens: ItemFila[] = []
+    for (const [munId, evs] of porMun) {
+      const municipio = municipios.find(m => m.id === munId)
+      if (!municipio) continue
+      // D1: fora da fila quem já está fechado ou não participa.
+      const st = chaveStatus(municipio)
+      if (st === 'fechado' || st === 'nao_participa') continue
+
+      const futuros = evs
+        .filter(e => new Date(e.data_inicio) >= agora)
+        .sort((a, b) => +new Date(a.data_inicio) - +new Date(b.data_inicio))
+      const passados = evs
+        .filter(e => new Date(e.data_inicio) < agora)
+        .sort((a, b) => +new Date(b.data_inicio) - +new Date(a.data_inicio))
+
+      const proximo = futuros[0] ?? null
+      const compromisso = proximo ?? passados[0] ?? null
+      const vencido = !proximo
+      const refData = compromisso ? compromisso.data_inicio : null
+
+      itens.push({ municipio, compromisso, vencido, refData })
+    }
+
+    // D2: refData ascendente — vencidos (data passada) sobem ao topo.
+    itens.sort((a, b) => {
+      const ta = a.refData ? +new Date(a.refData) : Infinity
+      const tb = b.refData ? +new Date(b.refData) : Infinity
+      return ta - tb
+    })
+    return itens
+  }, [eventos, municipios])
+
+  // ── Filtros operando sobre a fila ──
+  const filaFiltrada = useMemo(() => {
+    return fila.filter(item => {
+      const m = item.municipio
       const matchBusca = m.nome.toLowerCase().includes(busca.toLowerCase())
       const matchStatus = filtroStatus === 'todos' || chaveStatus(m) === filtroStatus
       const matchRegiao = filtroRegiao === 'Todas as regiões' || m.regiao === filtroRegiao
       return matchBusca && matchStatus && matchRegiao
     })
-  }, [lista, busca, filtroStatus, filtroRegiao])
+  }, [fila, busca, filtroStatus, filtroRegiao])
 
-  // ── Prioritárias: maiores cidades ainda não visitadas ──
-  const prioritarias = useMemo(() => {
-    return lista
-      .filter(m => chaveStatus(m) === 'nao_visitada')
-      .sort((a, b) => (popDe(b) ?? 0) - (popDe(a) ?? 0))
-      .slice(0, 5)
-  }, [lista])
-
-  function abrir(m: Municipio) {
-    setSelecionado(m)
-    setNovoStatus(chaveStatus(m))
-    setMensagem(null)
+  function fecharModal() {
+    setSelecionado(null)
   }
 
-  async function salvar() {
-    if (!selecionado) return
-    setSalvando(true)
-    setMensagem(null)
-    try {
-      const res = await fetch('/api/municipios/atualizar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selecionado.id, status_atendimento: novoStatus }),
-      })
-      const data = await res.json().catch(() => ({} as { error?: string }))
-      if (!res.ok) throw new Error(data?.error || `Falha (HTTP ${res.status})`)
-
-      // Atualiza a cópia local → placar, lista e ranking mudam na hora
-      setLista(prev => prev.map(m =>
-        m.id === selecionado.id ? { ...m, status_atendimento: novoStatus } : m
-      ))
-      setSelecionado(prev => (prev ? { ...prev, status_atendimento: novoStatus } : prev))
-      setMensagem({ tipo: 'ok', texto: 'Status atualizado com sucesso.' })
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Erro ao salvar. Tente novamente.'
-      setMensagem({ tipo: 'erro', texto: msg })
-    } finally {
-      setSalvando(false)
-    }
+  function aoConcluir() {
+    setSelecionado(null)
+    router.refresh() // re-puxa municípios + agenda do servidor
   }
 
   return (
     <div className="min-h-screen bg-[#f0f4f8]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        {/* ── Cabeçalho ── */}
-        <div>
-          <h1 className="text-2xl font-bold text-[#1e3a5f]">Visão Geral — Estado do Rio de Janeiro</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Situação do atendimento nos 92 municípios · OAB-RJ e Defensoria Pública
-          </p>
+        {/* ── Cabeçalho + contador ── */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-[#1e3a5f]">Fila da Direção — Estado do Rio de Janeiro</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Cidades ordenadas pela data do próximo compromisso · OAB-RJ e Defensoria Pública
+            </p>
+          </div>
+          <div className="inline-flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-sm shrink-0">
+            <span className="text-[#c9a227]">🎯</span>
+            <span className="text-sm text-gray-600">
+              <span className="font-bold text-[#1e3a5f]">{comContato}</span> de {TOTAL} com contato ·
+              faltam <span className="font-bold text-[#1e3a5f]">{faltam}</span>
+            </span>
+          </div>
         </div>
 
         {/* ── Placar por status ── */}
@@ -230,164 +255,82 @@ export default function OwnerDashboard({ municipios }: Props) {
           ))}
         </div>
 
-        {/* ── Barra de progresso ── */}
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-[#1e3a5f] flex items-center gap-2">
-              <Globe className="w-4 h-4" /> Cidades com atendimento iniciado
-            </span>
-            <span className="text-sm font-bold text-[#1e3a5f]">{progresso}%</span>
-          </div>
-          <div className="w-full bg-gray-100 rounded-full h-3">
-            <div
-              className="h-3 rounded-full bg-gradient-to-r from-[#2d5986] to-[#1e3a5f] transition-all duration-700"
-              style={{ width: `${progresso}%` }}
+        {/* ── Filtros ── */}
+        <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
+          <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
+            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            <input
+              type="text"
+              placeholder="Buscar município..."
+              value={busca}
+              onChange={e => setBusca(e.target.value)}
+              className="flex-1 text-sm outline-none bg-transparent"
             />
+            {busca && (
+              <button onClick={() => setBusca('')}>
+                <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
           </div>
-          <div className="flex justify-between mt-2 text-xs text-gray-400">
-            <span>{iniciadas} iniciadas · {totais.fechado} fechadas</span>
-            <span>{totais.nao_visitada} ainda não visitadas</span>
+          <div className="flex gap-2 flex-wrap items-center">
+            <button
+              onClick={() => setFiltroStatus('todos')}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                filtroStatus === 'todos'
+                  ? 'bg-[#1e3a5f] text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Todas
+            </button>
+            {STATUS_FILTRO_FILA.map(s => (
+              <button
+                key={s}
+                onClick={() => setFiltroStatus(filtroStatus === s ? 'todos' : s)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  filtroStatus === s
+                    ? 'bg-[#1e3a5f] text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {STATUS[s].curto}
+              </button>
+            ))}
+            <div className="flex items-center gap-1 ml-auto">
+              <Filter className="w-3.5 h-3.5 text-gray-400" />
+              <select
+                value={filtroRegiao}
+                onChange={e => setFiltroRegiao(e.target.value)}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none bg-white text-gray-600"
+              >
+                {REGIOES.map(r => <option key={r}>{r}</option>)}
+              </select>
+            </div>
           </div>
+          <p className="text-xs text-gray-400">{filaFiltrada.length} cidade(s) na fila</p>
         </div>
 
-        {/* ── Corpo: Lista + coluna direita ── */}
-        <div className="flex gap-6 items-start">
-
-          {/* ── Lista de municípios ── */}
-          <div className="flex-1 min-w-0 space-y-4">
-
-            {/* Filtros */}
-            <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
-              <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2">
-                <Search className="w-4 h-4 text-gray-400 shrink-0" />
-                <input
-                  type="text"
-                  placeholder="Buscar município..."
-                  value={busca}
-                  onChange={e => setBusca(e.target.value)}
-                  className="flex-1 text-sm outline-none bg-transparent"
-                />
-                {busca && (
-                  <button onClick={() => setBusca('')}>
-                    <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-                  </button>
-                )}
+        {/* ── Fila ── */}
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="divide-y divide-gray-50">
+            {filaFiltrada.length === 0 ? (
+              <div className="py-12 text-center text-gray-400 text-sm">
+                Nenhuma cidade na fila com os filtros atuais. A fila lista cidades com
+                compromisso marcado que ainda não foram fechadas.
               </div>
-              <div className="flex gap-2 flex-wrap items-center">
-                <button
-                  onClick={() => setFiltroStatus('todos')}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    filtroStatus === 'todos'
-                      ? 'bg-[#1e3a5f] text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Todas
-                </button>
-                {ORDEM_STATUS.map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setFiltroStatus(filtroStatus === s ? 'todos' : s)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      filtroStatus === s
-                        ? 'bg-[#1e3a5f] text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {STATUS[s].curto}
-                  </button>
-                ))}
-                <div className="flex items-center gap-1 ml-auto">
-                  <Filter className="w-3.5 h-3.5 text-gray-400" />
-                  <select
-                    value={filtroRegiao}
-                    onChange={e => setFiltroRegiao(e.target.value)}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none bg-white text-gray-600"
-                  >
-                    {REGIOES.map(r => <option key={r}>{r}</option>)}
-                  </select>
-                </div>
-              </div>
-              <p className="text-xs text-gray-400">{filtrados.length} de {TOTAL} municípios</p>
-            </div>
-
-            {/* Lista */}
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="divide-y divide-gray-50 overflow-y-auto max-h-[calc(100vh-320px)]">
-                {filtrados.length === 0 ? (
-                  <div className="py-12 text-center text-gray-400 text-sm">
-                    Nenhum município encontrado com os filtros selecionados.
-                  </div>
-                ) : (
-                  filtrados.map(m => {
-                    const cfg = STATUS[chaveStatus(m)]
-                    const pop = popDe(m)
-                    const sel = selecionado?.id === m.id
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => abrir(m)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left ${
-                          sel ? 'bg-blue-50 border-r-2 border-[#1e3a5f]' : ''
-                        }`}
-                      >
-                        <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">{m.nome}</p>
-                          <p className="text-xs text-gray-400 truncate">{m.regiao}</p>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {pop && (
-                            <span className="text-xs text-gray-400 hidden sm:block">
-                              {formatPopulacao(pop)} hab.
-                            </span>
-                          )}
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>
-                            {cfg.label}
-                          </span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-                      </button>
-                    )
-                  })
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Coluna direita ── */}
-          <div className="w-80 shrink-0 hidden lg:block space-y-4">
-            {selecionado ? (
-              <PainelCidade
-                municipio={selecionado}
-                novoStatus={novoStatus}
-                setNovoStatus={setNovoStatus}
-                salvando={salvando}
-                mensagem={mensagem}
-                onSalvar={salvar}
-                onFechar={() => setSelecionado(null)}
-              />
             ) : (
-              <Prioritarias municipios={prioritarias} onSelecionar={abrir} />
+              filaFiltrada.map(item => (
+                <LinhaFila key={item.municipio.id} item={item} onClick={() => setSelecionado(item)} />
+              ))
             )}
           </div>
         </div>
-
-        {/* ── Painel em mobile ── */}
-        {selecionado && (
-          <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-y-auto">
-            <PainelCidade
-              municipio={selecionado}
-              novoStatus={novoStatus}
-              setNovoStatus={setNovoStatus}
-              salvando={salvando}
-              mensagem={mensagem}
-              onSalvar={salvar}
-              onFechar={() => setSelecionado(null)}
-            />
-          </div>
-        )}
       </div>
+
+      {/* ── Modal central da cidade ── */}
+      {selecionado && (
+        <ModalCidade item={selecionado} onFechar={fecharModal} onConcluir={aoConcluir} />
+      )}
     </div>
   )
 }
@@ -423,140 +366,347 @@ function CardStatus({
   )
 }
 
-function Prioritarias({
-  municipios, onSelecionar,
-}: {
-  municipios: Municipio[]
-  onSelecionar: (m: Municipio) => void
-}) {
-  if (municipios.length === 0) {
-    return (
-      <div className="bg-white rounded-xl p-5 shadow-sm text-center">
-        <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-        <p className="text-sm font-medium text-gray-700">Todas as cidades já foram visitadas!</p>
-      </div>
-    )
-  }
+function LinhaFila({ item, onClick }: { item: ItemFila; onClick: () => void }) {
+  const { municipio: m, compromisso, vencido } = item
+  const cfg = STATUS[chaveStatus(m)]
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
-        <TrendingDown className="w-4 h-4 text-[#1e3a5f]" />
-        <span className="text-sm font-semibold text-gray-700">Prioritárias a visitar</span>
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left"
+    >
+      <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-gray-800 truncate">{m.nome}</p>
+        <p className="text-xs text-gray-400 truncate">
+          {m.regiao} · {formatHab(m.populacao)} hab.
+        </p>
       </div>
-      <div className="divide-y divide-gray-50">
-        {municipios.map((m, i) => {
-          const pop = popDe(m)
-          return (
-            <button
-              key={m.id}
-              onClick={() => onSelecionar(m)}
-              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors text-left"
-            >
-              <span className="text-xs font-bold text-[#1e3a5f] w-5 shrink-0">{i + 1}º</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">{m.nome}</p>
-                <p className="text-xs text-gray-400">{pop ? formatPopulacao(pop) + ' hab.' : m.regiao}</p>
+
+      {compromisso && (
+        <div className="hidden sm:flex flex-col items-end text-right shrink-0 mr-1">
+          <span className="text-xs font-medium text-gray-600 truncate max-w-[180px]">
+            {compromisso.tipo === 'reuniao' ? 'Reunião' : 'Visita'} · {compromisso.titulo}
+          </span>
+          <span className="text-xs text-gray-400">{fmtDataHora(compromisso.data_inicio)}</span>
+        </div>
+      )}
+
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>
+          {cfg.label}
+        </span>
+        {vencido && (
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700">
+            <AlertTriangle className="w-3 h-3" /> vencido — reagendar
+          </span>
+        )}
+      </div>
+
+      <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Modal central com as ações da cidade
+// ---------------------------------------------------------------------------
+type Modo = 'menu' | 'remarcar' | 'cancelar' | 'naoquer'
+
+function ModalCidade({
+  item, onFechar, onConcluir,
+}: {
+  item: ItemFila
+  onFechar: () => void
+  onConcluir: () => void
+}) {
+  const { municipio: m, compromisso } = item
+  const atual = chaveStatus(m)
+  const cfg = STATUS[atual]
+  const proximoAlvo = PROXIMO_ESTAGIO[atual]
+
+  const [modo, setModo] = useState<Modo>('menu')
+  const [dataInicio, setDataInicio] = useState(
+    compromisso ? toLocalInput(compromisso.data_inicio) : ''
+  )
+  const [dataFim, setDataFim] = useState(
+    compromisso?.data_fim ? toLocalInput(compromisso.data_fim) : ''
+  )
+  const [motivoCancel, setMotivoCancel] = useState('')
+  const [motivoNaoQuer, setMotivoNaoQuer] = useState('')
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
+
+  async function chamar(url: string, body: Record<string, unknown>): Promise<void> {
+    setSalvando(true)
+    setErro('')
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErro(json?.error ?? 'Não foi possível concluir a operação.')
+        return
+      }
+      onConcluir()
+    } catch {
+      setErro('Falha de rede. Tente novamente.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  // Ações de funil (reusam /api/municipios/atualizar) — nunca escrevem nao_visitada.
+  // `acao` sinaliza o verbo de audit (o relatório 3.5 separa por ele).
+  const avancar = () => proximoAlvo && chamar('/api/municipios/atualizar', {
+    id: m.id, status_atendimento: proximoAlvo, acao: 'funil_avancar',
+  })
+  const finalizou = () => chamar('/api/municipios/atualizar', {
+    id: m.id, status_atendimento: 'fechado', acao: 'funil_fechar',
+  })
+  const naoQuer = () => chamar('/api/municipios/atualizar', {
+    id: m.id,
+    status_atendimento: 'nao_participa',
+    acao: 'funil_nao_participa',
+    ...(motivoNaoQuer.trim() ? { motivo: motivoNaoQuer.trim() } : {}),
+  })
+
+  // Ações de agenda (reusam /api/agenda/atualizar).
+  const remarcar = () => compromisso && chamar('/api/agenda/atualizar', {
+    acao: 'remarcar', id: compromisso.id, data_inicio: dataInicio, data_fim: dataFim || null,
+  })
+  const cancelar = () => compromisso && chamar('/api/agenda/atualizar', {
+    acao: 'cancelar', id: compromisso.id, motivo: motivoCancel.trim(),
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+
+        {/* Cabeçalho */}
+        <div className="bg-[#1e3a5f] px-5 py-4 flex items-start justify-between">
+          <div>
+            <p className="text-xs text-blue-300 uppercase tracking-wide font-medium">{m.regiao}</p>
+            <h2 className="text-white font-bold text-lg leading-tight">{m.nome}</h2>
+            <p className="text-xs text-blue-200 mt-0.5">{formatHab(m.populacao)} habitantes</p>
+          </div>
+          <button onClick={onFechar} className="text-blue-300 hover:text-white transition-colors mt-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Estágio atual */}
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Estágio no funil</span>
+            <span className={`text-sm px-2 py-1 rounded-full font-medium ${cfg.color}`}>{cfg.label}</span>
+          </div>
+
+          {m.distancia_capital_km != null && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Route className="w-4 h-4 text-gray-400" />
+              <span>{m.distancia_capital_km} km da capital</span>
+            </div>
+          )}
+
+          {/* Compromisso */}
+          {compromisso ? (
+            <div className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-1.5">
+              <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                <CalendarDays className="w-4 h-4 text-[#2d5986]" />
+                {compromisso.tipo === 'reuniao' ? 'Reunião' : 'Visita'} · {compromisso.titulo}
               </div>
-              <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-            </button>
-          )
-        })}
-      </div>
-      <div className="px-4 py-2 bg-gray-50">
-        <p className="text-xs text-gray-500">Maiores cidades ainda não visitadas</p>
+              <p className="text-sm text-gray-600 flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-gray-400" /> {fmtDataHora(compromisso.data_inicio)}
+                {item.vencido && <span className="text-red-600 font-medium">· vencido</span>}
+              </p>
+              {compromisso.responsavel && (
+                <p className="text-sm text-gray-600 flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5 text-gray-400" /> {compromisso.responsavel}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">Sem compromisso registrado.</p>
+          )}
+
+          {erro && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+              <AlertTriangle className="w-4 h-4" /> {erro}
+            </div>
+          )}
+
+          {/* ── MENU de ações ── */}
+          {modo === 'menu' && (
+            <div className="space-y-2">
+              {compromisso && (
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setModo('remarcar')}
+                    disabled={salvando}
+                    className="flex items-center justify-center gap-2 text-sm border border-gray-200 text-gray-700 py-2.5 rounded-lg hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                    <CalendarDays className="w-4 h-4" /> Remarcar
+                  </button>
+                  <button
+                    onClick={() => setModo('cancelar')}
+                    disabled={salvando}
+                    className="flex items-center justify-center gap-2 text-sm border border-red-200 text-red-600 py-2.5 rounded-lg hover:bg-red-50 disabled:opacity-40 transition-colors">
+                    <X className="w-4 h-4" /> Cancelar reunião
+                  </button>
+                </div>
+              )}
+
+              {proximoAlvo && (
+                <button
+                  onClick={avancar}
+                  disabled={salvando}
+                  className="w-full flex items-center justify-center gap-2 bg-[#1e3a5f] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[#2d5986] disabled:opacity-40 transition-colors">
+                  {salvando ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+                  Avançar para {STATUS[proximoAlvo].label}
+                </button>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={finalizou}
+                  disabled={salvando}
+                  className="flex items-center justify-center gap-2 text-sm bg-emerald-600 text-white py-2.5 rounded-lg hover:bg-emerald-700 disabled:opacity-40 transition-colors">
+                  <CheckCircle2 className="w-4 h-4" /> Finalizou
+                </button>
+                <button
+                  onClick={() => setModo('naoquer')}
+                  disabled={salvando}
+                  className="flex items-center justify-center gap-2 text-sm border border-red-200 text-red-600 py-2.5 rounded-lg hover:bg-red-50 disabled:opacity-40 transition-colors">
+                  <Ban className="w-4 h-4" /> Não quer
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Remarcar ── */}
+          {modo === 'remarcar' && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Novo início *</label>
+                  <input
+                    type="datetime-local"
+                    value={dataInicio}
+                    onChange={e => setDataInicio(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Fim</label>
+                  <input
+                    type="datetime-local"
+                    value={dataFim}
+                    onChange={e => setDataFim(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]"
+                  />
+                </div>
+              </div>
+              <AcoesConfirmar
+                onVoltar={() => setModo('menu')}
+                onConfirmar={remarcar}
+                salvando={salvando}
+                desabilitado={!dataInicio}
+                rotulo="Salvar nova data"
+              />
+            </div>
+          )}
+
+          {/* ── Cancelar (motivo obrigatório) ── */}
+          {modo === 'cancelar' && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Motivo do cancelamento *</label>
+                <textarea
+                  value={motivoCancel}
+                  onChange={e => setMotivoCancel(e.target.value)}
+                  rows={3}
+                  placeholder="Por que a reunião foi desmarcada?"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f] resize-none"
+                />
+                <p className="text-xs text-gray-400 mt-1">A cidade permanece no estágio atual; só o evento é cancelado.</p>
+              </div>
+              <AcoesConfirmar
+                onVoltar={() => setModo('menu')}
+                onConfirmar={cancelar}
+                salvando={salvando}
+                desabilitado={!motivoCancel.trim()}
+                rotulo="Confirmar cancelamento"
+                perigo
+              />
+            </div>
+          )}
+
+          {/* ── Não quer (motivo opcional) ── */}
+          {modo === 'naoquer' && (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Motivo (opcional)</label>
+                <textarea
+                  value={motivoNaoQuer}
+                  onChange={e => setMotivoNaoQuer(e.target.value)}
+                  rows={3}
+                  placeholder="Registro opcional do porquê a prefeitura recusou."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f] resize-none"
+                />
+              </div>
+              <AcoesConfirmar
+                onVoltar={() => setModo('menu')}
+                onConfirmar={naoQuer}
+                salvando={salvando}
+                desabilitado={false}
+                rotulo="Marcar como não participa"
+                perigo
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
-function PainelCidade({
-  municipio, novoStatus, setNovoStatus, salvando, mensagem, onSalvar, onFechar,
+function AcoesConfirmar({
+  onVoltar, onConfirmar, salvando, desabilitado, rotulo, perigo,
 }: {
-  municipio: Municipio
-  novoStatus: StatusChave
-  setNovoStatus: (v: StatusChave) => void
+  onVoltar: () => void
+  onConfirmar: () => void
   salvando: boolean
-  mensagem: { tipo: 'ok' | 'erro'; texto: string } | null
-  onSalvar: () => void
-  onFechar: () => void
+  desabilitado: boolean
+  rotulo: string
+  perigo?: boolean
 }) {
-  const atual = chaveStatus(municipio)
-  const cfg = STATUS[atual]
-  const pop = popDe(municipio)
-  const alterado = novoStatus !== atual
-
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-      {/* Cabeçalho */}
-      <div className="bg-[#1e3a5f] px-4 py-4 flex items-start justify-between">
-        <div>
-          <p className="text-xs text-blue-300 uppercase tracking-wide font-medium">{municipio.regiao}</p>
-          <h2 className="text-white font-bold text-lg leading-tight">{municipio.nome}</h2>
-        </div>
-        <button onClick={onFechar} className="text-blue-300 hover:text-white transition-colors mt-1">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-
-      <div className="p-4 space-y-4">
-        {/* Info */}
-        {pop && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Users className="w-4 h-4 text-gray-400" />
-            <span>{pop.toLocaleString('pt-BR')} habitantes</span>
-          </div>
-        )}
-        {municipio.distancia_capital_km != null && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Route className="w-4 h-4 text-gray-400" />
-            <span>{municipio.distancia_capital_km} km da capital</span>
-          </div>
-        )}
-
-        {/* Status atual */}
-        <div>
-          <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Status de atendimento</p>
-          <span className={`text-sm px-2 py-1 rounded-full font-medium ${cfg.color}`}>
-            {cfg.label}
-          </span>
-        </div>
-
-        <hr className="border-gray-100" />
-
-        {/* Edição */}
-        <div className="space-y-3">
-          <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Atualizar status</p>
-          <select
-            value={novoStatus}
-            onChange={e => setNovoStatus(e.target.value as StatusChave)}
-            className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#2d5986] bg-white"
-          >
-            {ORDEM_STATUS.map(s => (
-              <option key={s} value={s}>{STATUS[s].label}</option>
-            ))}
-          </select>
-
-          {mensagem && (
-            <div className={`text-xs px-3 py-2 rounded-lg ${
-              mensagem.tipo === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'
-            }`}>
-              {mensagem.texto}
-            </div>
-          )}
-
-          <button
-            onClick={onSalvar}
-            disabled={!alterado || salvando}
-            className="w-full flex items-center justify-center gap-2 bg-[#1e3a5f] text-white text-sm font-medium py-2.5 rounded-lg hover:bg-[#2d5986] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            {salvando ? (
-              <><RefreshCw className="w-4 h-4 animate-spin" /> Salvando...</>
-            ) : (
-              'Salvar alterações'
-            )}
-          </button>
-        </div>
-      </div>
+    <div className="flex gap-2 justify-end">
+      <button
+        onClick={onVoltar}
+        disabled={salvando}
+        className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 disabled:opacity-40 transition-colors">
+        Voltar
+      </button>
+      <button
+        onClick={onConfirmar}
+        disabled={salvando || desabilitado}
+        className={`inline-flex items-center gap-2 px-4 py-2 text-sm text-white rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
+          perigo ? 'bg-red-600 hover:bg-red-700' : 'bg-[#1e3a5f] hover:bg-[#2d5986]'
+        }`}>
+        {salvando && <RefreshCw className="w-4 h-4 animate-spin" />}
+        {rotulo}
+      </button>
     </div>
   )
+}
+
+// Converte um ISO em valor aceito por <input type="datetime-local"> (local, sem TZ).
+function toLocalInput(iso: string): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
