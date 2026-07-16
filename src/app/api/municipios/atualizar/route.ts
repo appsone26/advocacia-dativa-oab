@@ -6,8 +6,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { isStatusFunil } from '@/lib/funil'
 
-const STATUS_VALIDOS = ['nao_visitada', 'marcada', 'realizada', 'negociacao', 'fechado']
+// Melhor esforço para descobrir o IP de origem (atrás do proxy da Vercel).
+function getIp(req: NextRequest): string | null {
+  const fwd = req.headers.get('x-forwarded-for')
+  if (fwd) return fwd.split(',')[0].trim()
+  return req.headers.get('x-real-ip')
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (!id || !status_atendimento) {
       return NextResponse.json({ error: 'id e status_atendimento obrigatórios' }, { status: 400 })
     }
-    if (!STATUS_VALIDOS.includes(status_atendimento)) {
+    if (!isStatusFunil(status_atendimento)) {
       return NextResponse.json({ error: 'status_atendimento inválido' }, { status: 400 })
     }
 
@@ -66,17 +72,24 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Best-effort: audit_log não pode derrubar o salvamento ──
+    // Schema REAL do audit_log (seção 3-bis): user_id / acao / tabela /
+    // registro_id / valor_antes / valor_depois / ip_address. O contexto
+    // (nome da cidade, estágio de→para) vai no jsonb, não em colunas.
+    // Correção da dívida: o insert antigo usava colunas inexistentes
+    // (usuario_id/usuario_nome/detalhe/municipio_*) e falhava calado.
     try {
-      await admin.from('audit_log').insert({
-        usuario_id:     perfil.id,
-        usuario_nome:   perfil.nome,
-        acao:           'municipio_status_atendimento',
-        detalhe:        `Status de atendimento de ${municipio.nome}: ${municipio.status_atendimento ?? 'nao_visitada'} → ${status_atendimento}`,
-        municipio_id:   municipio.id,
-        municipio_nome: municipio.nome,
+      const { error: auditErr } = await admin.from('audit_log').insert({
+        user_id:      perfil.id,
+        acao:         'funil_avancar',
+        tabela:       'municipios',
+        registro_id:  String(municipio.id),
+        valor_antes:  { status_atendimento: municipio.status_atendimento ?? 'nao_visitada' },
+        valor_depois: { status_atendimento, municipio_nome: municipio.nome },
+        ip_address:   getIp(req),
       })
+      if (auditErr) console.warn('[municipios/status] audit_log falhou (ignorado):', auditErr.message)
     } catch (auditErr) {
-      console.warn('[municipios/status] audit_log falhou (ignorado):', auditErr)
+      console.warn('[municipios/status] audit_log exception (ignorado):', auditErr)
     }
 
     return NextResponse.json({ ok: true, status_atendimento })
