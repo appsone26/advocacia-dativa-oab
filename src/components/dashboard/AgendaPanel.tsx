@@ -65,7 +65,7 @@ export default function AgendaPanel({
 
   const [modalAgenda, setModalAgenda] = useState(false)
   const [novoEvento, setNovoEvento] = useState({
-    titulo: '', descricao: '', tipo: 'reuniao', data_inicio: '', data_fim: '', municipio_id: '',
+    titulo: '', descricao: '', tipo: 'reuniao', data_inicio: '', data_fim: '', municipio_id: '', responsavel: '',
   })
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
@@ -77,7 +77,8 @@ export default function AgendaPanel({
   const anteriores = agenda.filter(ev => new Date(ev.data_inicio) <  agora).reverse()
 
   async function salvarEvento() {
-    if (!novoEvento.titulo || !novoEvento.data_inicio) return
+    // Município e responsável são obrigatórios nos dois tipos.
+    if (!novoEvento.titulo || !novoEvento.data_inicio || !novoEvento.municipio_id || !novoEvento.responsavel.trim()) return
     setSalvando(true)
     setErro('')
     try {
@@ -90,7 +91,7 @@ export default function AgendaPanel({
       if (res.ok) {
         setMsgSucesso('Evento criado com sucesso!')
         setModalAgenda(false)
-        setNovoEvento({ titulo: '', descricao: '', tipo: 'reuniao', data_inicio: '', data_fim: '', municipio_id: '' })
+        setNovoEvento({ titulo: '', descricao: '', tipo: 'reuniao', data_inicio: '', data_fim: '', municipio_id: '', responsavel: '' })
         router.refresh() // re-puxa a agenda do servidor
         setTimeout(() => setMsgSucesso(''), 3000)
       } else {
@@ -247,20 +248,28 @@ export default function AgendaPanel({
                   />
                 </div>
               </div>
-              {novoEvento.tipo === 'visita' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Município</label>
-                  <select
-                    value={novoEvento.municipio_id}
-                    onChange={e => setNovoEvento(p => ({ ...p, municipio_id: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]">
-                    <option value="">Selecione...</option>
-                    {municipios.map(m => (
-                      <option key={m.id} value={m.id}>{m.nome}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Município *</label>
+                <select
+                  value={novoEvento.municipio_id}
+                  onChange={e => setNovoEvento(p => ({ ...p, municipio_id: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]">
+                  <option value="">Selecione...</option>
+                  {municipios.map(m => (
+                    <option key={m.id} value={m.id}>{m.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Responsável / anfitrião *</label>
+                <input
+                  type="text"
+                  value={novoEvento.responsavel}
+                  onChange={e => setNovoEvento(p => ({ ...p, responsavel: e.target.value }))}
+                  placeholder="Ex: Dr. João — Sec. de Assistência Social"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Descrição</label>
                 <textarea
@@ -280,7 +289,7 @@ export default function AgendaPanel({
               </button>
               <button
                 onClick={salvarEvento}
-                disabled={salvando || !novoEvento.titulo || !novoEvento.data_inicio}
+                disabled={salvando || !novoEvento.titulo || !novoEvento.data_inicio || !novoEvento.municipio_id || !novoEvento.responsavel.trim()}
                 className="px-4 py-2 text-sm bg-[#1e3a5f] text-white rounded-lg hover:bg-[#2d5986] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 {salvando ? 'Salvando...' : 'Criar evento'}
               </button>

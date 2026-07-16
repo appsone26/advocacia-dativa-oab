@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   MapPin, Users, FileText, Calendar, Send,
   CheckCircle, Clock, AlertCircle, ChevronRight,
@@ -110,13 +111,15 @@ function temPermissao(membro: MembroComissao | null, perm: string): boolean {
 export default function ComissaoDashboard({
   perfil, membro, municipios, casos, agenda, regioes
 }: ComissaoDashboardProps) {
+  const router = useRouter()
   const [aba, setAba] = useState<'visao' | 'municipios' | 'casos' | 'agenda'>('visao')
   const [modalAgenda, setModalAgenda] = useState(false)
   const [novoEvento, setNovoEvento] = useState({
-    titulo: '', descricao: '', tipo: 'reuniao', data_inicio: '', data_fim: '', municipio_id: ''
+    titulo: '', descricao: '', tipo: 'reuniao', data_inicio: '', data_fim: '', municipio_id: '', responsavel: ''
   })
   const [salvando, setSalvando] = useState(false)
   const [msgSucesso, setMsgSucesso] = useState('')
+  const [erroAgenda, setErroAgenda] = useState('')
 
   const podeEditarAgenda   = temPermissao(membro, 'editar_agenda')
   const podeVerAgenda      = temPermissao(membro, 'ver_agenda')
@@ -132,20 +135,28 @@ export default function ComissaoDashboard({
 
   // Salvar evento
   async function salvarEvento() {
-    if (!novoEvento.titulo || !novoEvento.data_inicio) return
+    // Município e responsável são obrigatórios nos dois tipos.
+    if (!novoEvento.titulo || !novoEvento.data_inicio || !novoEvento.municipio_id || !novoEvento.responsavel.trim()) return
     setSalvando(true)
+    setErroAgenda('')
     try {
       const res = await fetch('/api/agenda/criar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(novoEvento)
       })
+      const json = await res.json().catch(() => ({}))
       if (res.ok) {
         setMsgSucesso('Evento criado com sucesso!')
         setModalAgenda(false)
-        setNovoEvento({ titulo: '', descricao: '', tipo: 'reuniao', data_inicio: '', data_fim: '', municipio_id: '' })
+        setNovoEvento({ titulo: '', descricao: '', tipo: 'reuniao', data_inicio: '', data_fim: '', municipio_id: '', responsavel: '' })
+        router.refresh() // re-puxa a agenda e o status atualizado da cidade
         setTimeout(() => setMsgSucesso(''), 3000)
+      } else {
+        setErroAgenda(json?.error ?? 'Não foi possível criar o evento.')
       }
+    } catch {
+      setErroAgenda('Falha de rede ao criar o evento.')
     } finally {
       setSalvando(false)
     }
@@ -539,11 +550,16 @@ export default function ComissaoDashboard({
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h3 className="font-semibold text-[#1e3a5f]">Novo evento</h3>
-              <button onClick={() => setModalAgenda(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => { setModalAgenda(false); setErroAgenda('') }} className="text-gray-400 hover:text-gray-600">
                 <X size={18} />
               </button>
             </div>
             <div className="p-5 space-y-4">
+              {erroAgenda && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm">
+                  <AlertCircle size={15} /> {erroAgenda}
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Título *</label>
                 <input
@@ -594,20 +610,28 @@ export default function ComissaoDashboard({
                   />
                 </div>
               </div>
-              {novoEvento.tipo === 'visita' && (
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Município</label>
-                  <select
-                    value={novoEvento.municipio_id}
-                    onChange={e => setNovoEvento(p => ({ ...p, municipio_id: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]">
-                    <option value="">Selecione...</option>
-                    {municipios.map(m => (
-                      <option key={m.id} value={m.id}>{m.nome}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Município *</label>
+                <select
+                  value={novoEvento.municipio_id}
+                  onChange={e => setNovoEvento(p => ({ ...p, municipio_id: e.target.value }))}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]">
+                  <option value="">Selecione...</option>
+                  {municipios.map(m => (
+                    <option key={m.id} value={m.id}>{m.nome}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Responsável / anfitrião *</label>
+                <input
+                  type="text"
+                  value={novoEvento.responsavel}
+                  onChange={e => setNovoEvento(p => ({ ...p, responsavel: e.target.value }))}
+                  placeholder="Ex: Dr. João — Sec. de Assistência Social"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f]"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Descrição</label>
                 <textarea
@@ -621,13 +645,13 @@ export default function ComissaoDashboard({
             </div>
             <div className="px-5 pb-5 flex gap-2 justify-end">
               <button
-                onClick={() => setModalAgenda(false)}
+                onClick={() => { setModalAgenda(false); setErroAgenda('') }}
                 className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
                 Cancelar
               </button>
               <button
                 onClick={salvarEvento}
-                disabled={salvando || !novoEvento.titulo || !novoEvento.data_inicio}
+                disabled={salvando || !novoEvento.titulo || !novoEvento.data_inicio || !novoEvento.municipio_id || !novoEvento.responsavel.trim()}
                 className="px-4 py-2 text-sm bg-[#1e3a5f] text-white rounded-lg hover:bg-[#2d5986] disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 {salvando ? 'Salvando...' : 'Criar evento'}
               </button>
